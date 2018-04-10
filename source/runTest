@@ -1,0 +1,6 @@
+./parsing ../testcases/Test.class
+./parsing ../testcases/Test1.class
+./parsing ../testcases/Test2.class
+./parsing ../testcases/Test3.class
+./parsing ../testcases/Test4.class
+./parsing ../testcases/Test5.class
