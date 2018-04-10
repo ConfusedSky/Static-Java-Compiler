@@ -10,7 +10,7 @@
 
 #define ReturnError(returnValue) {int r = returnValue; if(r) return r;}
 
-unsigned int readInt(int * value, int nBytes, FILE * file)
+int readInt(int * value, int nBytes, FILE * file)
 {
 	unsigned char bytes[4];
 	*value = 0;
@@ -72,11 +72,18 @@ int getConstantInfo(ConstantInfo * cf, FILE * file)
 			case CONSTANT_Class:
 				ReturnError(readInt(&(info->name_index), 2, file));
 				break;
+
 			case CONSTANT_Fieldref:
 			case CONSTANT_Methodref:
 				ReturnError(readInt(&(info->class_index), 2, file));
 				ReturnError(readInt(&(info->name_and_type_index), 2, file));
 				break;
+
+			case CONSTANT_NameAndType:
+				ReturnError(readInt(&(info->name_index), 2, file));
+				ReturnError(readInt(&(info->descriptor_index), 2, file));
+				break;
+
 			case CONSTANT_Utf8:
 				ReturnError(readInt((int *) &(info->length), 2, file));
 				info->chars = (char *) malloc(sizeof(char) * (info->length+1));
@@ -87,6 +94,7 @@ int getConstantInfo(ConstantInfo * cf, FILE * file)
 				}
 				info->chars[info->length] = 0;
 				break;
+
 			default:
 				printConstantInfo(cf);
 				return PARSE_CONSTANT_TAG_NOT_DEFINED;
@@ -107,11 +115,15 @@ int printConstantInfo(ConstantInfo * cf)
 		{
 			case CONSTANT_Class:
 				printf("%2i Class: Name index(%i)\n", i, info->name_index);
+				break;
 			case CONSTANT_Fieldref:
 				printf("%2i Field Ref: Class index(%i), Name and type index(%i).\n", i, info->class_index, info->name_and_type_index);
 				break;
 			case CONSTANT_Methodref:
 				printf("%2i Method Ref: Class index(%i), Name and type index(%i).\n", i, info->class_index, info->name_and_type_index);
+				break;
+			case CONSTANT_NameAndType:
+				printf("%2i Name and Type info: Name index(%i), Descriptor index(%i)\n", i, info->name_index, info->descriptor_index);
 				break;
 			case CONSTANT_Utf8:
 				printf("%2i UTF-8 string: %s\n", i, info->chars);
