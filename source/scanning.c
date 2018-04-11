@@ -31,6 +31,11 @@ int readInt(int * value, int nBytes, FILE * file)
 	}
 }
 
+int readShort(short * value, FILE * file)
+{
+	return readInt((int *) value, 2, file);
+}
+
 int checkMagic(FILE * file)
 {
 	unsigned int magic;
@@ -47,24 +52,24 @@ int checkMagic(FILE * file)
 	}
 }
 
-int getVersionInfo(VersionInfo * info, FILE * file)
+int getVersionInfo(ClassInfo * info, FILE * file)
 {
-	ReturnError(readInt((int *) &(info->minorVersion), 2, file));
-	ReturnError(readInt((int *) &(info->majorVersion), 2, file));
+	ReturnError(readShort(&(info->minorVersion), file));
+	ReturnError(readShort(&(info->majorVersion), file));
 
 	return PARSE_OK;
 }
 
-int printConstantInfo(ConstantInfo * cf);
+int printConstantInfo(ClassInfo * cf);
 
-int getConstantInfo(ConstantInfo * cf, FILE * file)
+int getConstantInfo(ClassInfo * cf, FILE * file)
 {
-	ReturnError(readInt(&(cf->nConstants), 2, file));
-	cf->constantPool = (CPInfo *) malloc(sizeof(CPInfo) * cf->nConstants);
+	ReturnError(readShort(&(cf->constant_pool_count), file));
+	cf->constant_pool = (CPInfo *) malloc(sizeof(CPInfo) * cf->constant_pool_count);
 
-	for(int i = 1; i < cf->nConstants; i++)
+	for(int i = 1; i < cf->constant_pool_count; i++)
 	{
-		CPInfo * info = &cf->constantPool[i];
+		CPInfo * info = &cf->constant_pool[i];
 		ReturnError(readInt((int *) &(info->tag), 1, file));
 
 		switch(info->tag)
@@ -85,7 +90,7 @@ int getConstantInfo(ConstantInfo * cf, FILE * file)
 				break;
 
 			case CONSTANT_Utf8:
-				ReturnError(readInt((int *) &(info->length), 2, file));
+				ReturnError(readShort(&(info->length), file));
 				info->chars = (char *) malloc(sizeof(char) * (info->length+1));
 				int bytesRead = fread(info->chars, 1, info->length, file);
 				if(bytesRead != info->length)
@@ -105,34 +110,34 @@ int getConstantInfo(ConstantInfo * cf, FILE * file)
 	return PARSE_OK;
 }
 
-int printConstantInfo(ConstantInfo * cf)
+int printConstantInfo(ClassInfo * cf)
 {
-	for(int i = 1; i < cf->nConstants; i++)
+	for(int i = 1; i < cf->constant_pool_count; i++)
 	{
-		CPInfo * info = &cf->constantPool[i];
+		CPInfo * info = &cf->constant_pool[i];
 
 		switch(info->tag)
 		{
 			case CONSTANT_Class:
 				printf("%2i Class: Name index(%i)\n", i, info->name_index);
-				printf("\tName: %s\n",cf->constantPool[info->name_index].chars);
+				printf("\tName: %s\n",cf->constant_pool[info->name_index].chars);
 				break;
 			case CONSTANT_Fieldref:
 				printf("%2i Field Ref: Class index(%i), Name and type index(%i).\n", i, info->class_index, info->name_and_type_index);
-				printf("\tClass: %s\n", cf->constantPool[cf->constantPool[info->class_index].name_index].chars);
-				printf("\tName: %s\n", cf->constantPool[cf->constantPool[info->name_and_type_index].name_index].chars);
-				printf("\tDescriptor: %s\n", cf->constantPool[cf->constantPool[info->name_and_type_index].descriptor_index].chars);
+				printf("\tClass: %s\n", cf->constant_pool[cf->constant_pool[info->class_index].name_index].chars);
+				printf("\tName: %s\n", cf->constant_pool[cf->constant_pool[info->name_and_type_index].name_index].chars);
+				printf("\tDescriptor: %s\n", cf->constant_pool[cf->constant_pool[info->name_and_type_index].descriptor_index].chars);
 				break;
 			case CONSTANT_Methodref:
 				printf("%2i Method Ref: Class index(%i), Name and type index(%i).\n", i, info->class_index, info->name_and_type_index);
-				printf("\tClass: %s\n", cf->constantPool[cf->constantPool[info->class_index].name_index].chars);
-				printf("\tName: %s\n", cf->constantPool[cf->constantPool[info->name_and_type_index].name_index].chars);
-				printf("\tDescriptor: %s\n", cf->constantPool[cf->constantPool[info->name_and_type_index].descriptor_index].chars);
+				printf("\tClass: %s\n", cf->constant_pool[cf->constant_pool[info->class_index].name_index].chars);
+				printf("\tName: %s\n", cf->constant_pool[cf->constant_pool[info->name_and_type_index].name_index].chars);
+				printf("\tDescriptor: %s\n", cf->constant_pool[cf->constant_pool[info->name_and_type_index].descriptor_index].chars);
 				break;
 			case CONSTANT_NameAndType:
 				printf("%2i Name and Type info: Name index(%i), Descriptor index(%i)\n", i, info->name_index, info->descriptor_index);
-				printf("\tName: %s\n", cf->constantPool[info->name_index].chars);
-				printf("\tDescriptor: %s\n", cf->constantPool[info->descriptor_index].chars);
+				printf("\tName: %s\n", cf->constant_pool[info->name_index].chars);
+				printf("\tDescriptor: %s\n", cf->constant_pool[info->descriptor_index].chars);
 				break;
 			case CONSTANT_Utf8:
 				printf("%2i UTF-8 string: %s\n", i, info->chars);
@@ -145,14 +150,13 @@ int printConstantInfo(ConstantInfo * cf)
 
 int scan(FILE * file)
 {
-	VersionInfo vinfo;
-	ConstantInfo cinfo;
+	ClassInfo class;
 	ReturnError(checkMagic(file));
-	ReturnError(getVersionInfo(&vinfo, file));
-	ReturnError(getConstantInfo(&cinfo, file));
+	ReturnError(getVersionInfo(&class, file));
+	ReturnError(getConstantInfo(&class, file));
 
-	printf("Class Version: %i.%i\n", vinfo.majorVersion, vinfo.minorVersion);
-	printf("Number of constants: %i\n", cinfo.nConstants);
+	printf("Class Version: %i.%i\n", class.majorVersion, class.minorVersion);
+	printf("Number of constants: %i\n", class.constant_pool_count);
 
 	return PARSE_OK;
 }

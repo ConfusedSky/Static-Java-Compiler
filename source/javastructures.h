@@ -1,12 +1,6 @@
 #ifndef _JAVASTRUCTURES_GUARD
 #define _JAVASTRUCTURES_GUARD
 
-typedef struct _versionInfo
-{
-	short majorVersion;
-	short minorVersion;
-} VersionInfo;
-
 #define CONSTANT_Class					7
 #define CONSTANT_Fieldref				9
 #define CONSTANT_Methodref				10
@@ -52,12 +46,6 @@ typedef struct _cp_info
 	short length;
 } CPInfo;
 
-typedef struct _constantInfo
-{
-	int nConstants;
-	CPInfo * constantPool;
-} ConstantInfo;
-
 #pragma pack(pop)
 
 #define ACC_PUBLIC		0x0001
@@ -82,7 +70,7 @@ typedef struct _field_info
 	short name_index;
 	short descriptor_index;
 	short attributes_count;
-	
+
 } FieldInfo;
 
 typedef struct _method_info
@@ -96,9 +84,21 @@ typedef struct _method_info
 
 typedef struct _classInfo
 {
-	int access_flags;
-	int this_class;
-	int super_class; 
+	short majorVersion;
+	short minorVersion;
+	short constant_pool_count;
+	CPInfo * constant_pool;
+	short access_flags;
+	short this_class;
+	short super_class;
+	short interfaces_count;
+	short * interfaces;
+	short fields_count;
+	FieldInfo * fields;
+	short methods_count;
+	MethodInfo * methods;
+	short attributes_count;
+	AttributeInfo * attributes;
 } ClassInfo;
 
 #endif
