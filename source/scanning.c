@@ -49,8 +49,8 @@ int checkMagic(FILE * file)
 
 int getVersionInfo(VersionInfo * info, FILE * file)
 {
-	ReturnError(readInt(&(info->minorVersion), 2, file));
-	ReturnError(readInt(&(info->majorVersion), 2, file));
+	ReturnError(readInt((int *) &(info->minorVersion), 2, file));
+	ReturnError(readInt((int *) &(info->majorVersion), 2, file));
 
 	return PARSE_OK;
 }
