@@ -1,6 +1,6 @@
-./parsing ../testcases/Test.class
-./parsing ../testcases/Test1.class
-./parsing ../testcases/Test2.class
-./parsing ../testcases/Test3.class
-./parsing ../testcases/Test4.class
-./parsing ../testcases/Test5.class
+./scanning ../testcases/Test.class
+./scanning ../testcases/Test1.class
+./scanning ../testcases/Test2.class
+./scanning ../testcases/Test3.class
+./scanning ../testcases/Test4.class
+./scanning ../testcases/Test5.class

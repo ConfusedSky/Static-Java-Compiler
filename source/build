@@ -1,1 +1,1 @@
-gcc parsing.c -ggdb -o parsing
+gcc scanning.c -ggdb -o scanning
