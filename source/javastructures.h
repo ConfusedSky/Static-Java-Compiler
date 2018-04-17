@@ -70,7 +70,7 @@ typedef struct _field_info
 	short name_index;
 	short descriptor_index;
 	short attributes_count;
-
+	AttributeInfo * attributes;
 } FieldInfo;
 
 typedef struct _method_info

@@ -1,4 +1,5 @@
 public class Test {
+
 	public static void printInt(int value) {
 		System.out.println(value);
 	}
