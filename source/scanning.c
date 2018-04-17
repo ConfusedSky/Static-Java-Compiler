@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "javastructures.h"
 
 #define PARSE_OK 0
@@ -34,6 +35,11 @@ int readInt(int * value, int nBytes, FILE * file)
 int readShort(short * value, FILE * file)
 {
 	return readInt((int *) value, 2, file);
+}
+
+char * derefConstant(ClassInfo * ci, int name_index)
+{
+	return ci->constant_pool[name_index].chars;
 }
 
 int checkMagic(FILE * file)
@@ -160,12 +166,12 @@ int getInterfaces(ClassInfo * ci, FILE * file)
 	return PARSE_OK;
 }
 
-int getAttributes(AttributeInfo * ai, short attributes_count, FILE * file)
+int getAttributes(AttributeInfo ** ai, short attributes_count, FILE * file)
 {
-	ai = (AttributeInfo *) malloc(sizeof(AttributeInfo) * attributes_count);
+	*ai = (AttributeInfo *) malloc(sizeof(AttributeInfo) * attributes_count);
 	for(int i = 0; i < attributes_count; i++)
 	{
-		AttributeInfo * attribute = &ai[i];
+		AttributeInfo * attribute = &*ai[i];
 		ReturnError(readShort(&attribute->attribute_name_index, file));
 		ReturnError(readInt(&attribute->attribute_length, 4, file));
 		attribute->info = (char *) malloc(attribute->attribute_length);
@@ -180,6 +186,21 @@ int getAttributes(AttributeInfo * ai, short attributes_count, FILE * file)
 	return PARSE_OK;
 }
 
+int printAttributes(ClassInfo * ci, AttributeInfo * ai, short attributes_count)
+{
+	for(int i = 0; i < attributes_count; i++)
+	{
+		char * attribute_name = derefConstant(ci, ai[i].attribute_name_index);
+		printf("\t%s: ", attribute_name);
+		if(strcmp(attribute_name, "SourceFile") == 0)
+		{
+			printf("%s\n", derefConstant(ci, *(short *) ai[i].info));
+		}
+		puts("");
+		printf("\t\tLength: %i\n", ai[i].attribute_length);
+	}
+}
+
 int getFields(ClassInfo * ci, FILE * file)
 {
 	ReturnError(readShort(&ci->fields_count, file));
@@ -191,7 +212,7 @@ int getFields(ClassInfo * ci, FILE * file)
 		ReturnError(readShort(&field->name_index, file));
 		ReturnError(readShort(&field->descriptor_index, file));
 		ReturnError(readShort(&field->attributes_count, file));
-		ReturnError(getAttributes(field->attributes, field->attributes_count, file));
+		ReturnError(getAttributes(&field->attributes, field->attributes_count, file));
 	}
 
 	return PARSE_OK;
@@ -201,7 +222,7 @@ void printFields(ClassInfo * ci)
 {
 	for(int i = 0; i < ci->fields_count; i++)
 	{
-		printf("%#06x,%s,%s\n", ci->fields[i].access_flags, ci->constant_pool[ci->fields[i].name_index].chars, ci->constant_pool[ci->fields[i].descriptor_index].chars);
+		printf("%#06x,%s,%s\n", ci->fields[i].access_flags, derefConstant(ci, ci->fields[i].name_index), derefConstant(ci, ci->fields[i].descriptor_index));
 	}
 }
 
@@ -216,7 +237,7 @@ int getMethods(ClassInfo * ci, FILE * file)
 		ReturnError(readShort(&method->name_index, file));
 		ReturnError(readShort(&method->descriptor_index, file));
 		ReturnError(readShort(&method->attributes_count, file));
-		ReturnError(getAttributes(method->attributes, method->attributes_count, file));
+		ReturnError(getAttributes(&method->attributes, method->attributes_count, file));
 	}
 
 	return PARSE_OK;
@@ -227,7 +248,8 @@ void printMethods(ClassInfo * ci)
 	for(int i = 0; i < ci->methods_count; i++)
 	{
 		MethodInfo * method = &ci->methods[i];
-		printf("%#06x, %s, %s\n", method->access_flags, ci->constant_pool[method->name_index].chars, ci->constant_pool[method->descriptor_index].chars);
+		printf("%#06x, %s, %s\n", method->access_flags, derefConstant(ci, method->name_index), derefConstant(ci, method->descriptor_index));
+		printAttributes(ci, method->attributes, method->attributes_count);
 	}
 }
 
@@ -243,7 +265,7 @@ int scan(ClassInfo * ci, FILE * file)
 	ReturnError(getFields(ci, file));
 	ReturnError(getMethods(ci, file));
 	ReturnError(readShort(&ci->attributes_count, file));
-	ReturnError(getAttributes(ci->attributes, ci->attributes_count, file));
+	ReturnError(getAttributes(&ci->attributes, ci->attributes_count, file));
 
 	return PARSE_OK;
 }
@@ -252,13 +274,16 @@ void printClassInfo(ClassInfo * ci)
 {
 	printf("Class Version: %i.%i\n", ci->majorVersion, ci->minorVersion);
 	printf("Number of Constants: %i\n", ci->constant_pool_count);
-	printf("Access Flags: %#06x\n", ci->access_flags);
-	printf("Class: %s\n", ci->constant_pool[ci->constant_pool[ci->this_class].name_index].chars);
-	printf("Super Class: %s\n", ci->constant_pool[ci->constant_pool[ci->super_class].name_index].chars);
+	printConstantInfo(ci);
+	printf("\nAccess Flags: %#06x\n", ci->access_flags);
+	printf("Class: %s\n", derefConstant(ci, ci->constant_pool[ci->this_class].name_index));
+	printf("Super Class: %s\n", derefConstant(ci, ci->constant_pool[ci->super_class].name_index));
 	printf("Number of Interfaces: %i\n", ci->interfaces_count);
 	printf("Number of Fields: %i\n", ci->fields_count);
-	printf("Number of Methods: %i\n", ci->methods_count);
-	printf("Number of Attributes: %i\n", ci->attributes_count);
+	printf("\nNumber of Methods: %i\n", ci->methods_count);
+	printMethods(ci);
+	printf("\nNumber of Attributes: %i\n", ci->attributes_count);
+	printAttributes(ci, ci->attributes, ci->attributes_count);
 }
 
 int main(int argc, char const *argv[])
