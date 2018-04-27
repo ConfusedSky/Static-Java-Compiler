@@ -10,6 +10,21 @@
 #define PARSE_CONSTANT_TAG_NOT_DEFINED 4
 
 #define ReturnError(returnValue) {int r = returnValue; if(r){printf("Failed at line: %i\n", __LINE__); return r;}}
+#define SWAP(a, b) {a ^= b; b ^= a; a ^= b;}
+
+int reverseBytes(char * bytes, int nBytes)
+{
+	char * end = bytes + nBytes - 1;
+
+	while(bytes < end)
+	{
+		SWAP(*bytes, *end);
+		bytes++;
+		end--;
+	}
+
+	return PARSE_OK;
+}
 
 int readInt(int * value, int nBytes, FILE * file)
 {
@@ -80,6 +95,7 @@ int getConstantInfo(ClassInfo * ci, FILE * file)
 
 		switch(info->tag)
 		{
+			case CONSTANT_String:
 			case CONSTANT_Class:
 				ReturnError(readInt(&(info->name_index), 2, file));
 				break;
@@ -124,6 +140,10 @@ void printConstantInfo(ClassInfo * ci)
 
 		switch(info->tag)
 		{
+			case CONSTANT_String:
+				printf("%2i String: Name index(%i)\n", i, info->string_index);
+				printf("\tName: %s\n", derefConstant(ci, info->string_index));
+				break;
 			case CONSTANT_Class:
 				printf("%2i Class: Name index(%i)\n", i, info->name_index);
 				printf("\tName: %s\n", derefConstant(ci, info->name_index));
@@ -166,24 +186,100 @@ int getInterfaces(ClassInfo * ci, FILE * file)
 	return PARSE_OK;
 }
 
-int getAttributes(AttributeInfo ** ai, short attributes_count, FILE * file)
+int get_source_file_info(AttributeInfo * ai)
+{
+	reverseBytes(ai->info, 2);
+	return PARSE_OK;
+}
+
+int get_exception_info(char * exception_info)
+{
+	reverseBytes(exception_info, 2);
+	exception_info += 2;
+	reverseBytes(exception_info, 2);
+	exception_info += 2;
+	reverseBytes(exception_info, 2);
+	exception_info += 2;
+	reverseBytes(exception_info, 2);
+	exception_info += 2;
+}
+
+int get_code_info(AttributeInfo * ai)
+{
+	char * info = ai->info;
+	CodeInfo * code = (CodeInfo *) info;
+	reverseBytes(info, 2);
+	info += 2;
+	reverseBytes(info, 2);
+	info += 2;
+	reverseBytes(info, 4);
+	info += *(int *)info;
+	info += 4;
+	reverseBytes(info, 2);
+	short exception_table_length = *(short *)info;
+	ExceptionInfo * exception_table = (ExceptionInfo *) malloc(exception_table_length * sizeof(ExceptionInfo));
+	info += 2;
+	for(int i = 0; i < exception_table_length; i++)
+	{
+		get_exception_info(info);
+		memcpy((void *) &(exception_table[i]), info, sizeof(exception_table_length));
+		info += 8;
+	}
+	code->exception_table_length = exception_table_length;
+	code->exception_table = exception_table;
+
+	reverseBytes(info, 2);
+	code->attributes_count = *(short *) info;
+	info += 2;
+
+	return PARSE_OK;
+}
+
+int getAttributes(ClassInfo * ci, AttributeInfo ** ai, short attributes_count, FILE * file)
 {
 	*ai = (AttributeInfo *) malloc(sizeof(AttributeInfo) * attributes_count);
 	for(int i = 0; i < attributes_count; i++)
 	{
-		AttributeInfo * attribute = &*ai[i];
+		AttributeInfo * attribute = &((*ai)[i]);
 		ReturnError(readShort(&attribute->attribute_name_index, file));
 		ReturnError(readInt(&attribute->attribute_length, 4, file));
-		attribute->info = (char *) malloc(attribute->attribute_length * sizeof(chars));
+		attribute->info = (char *) malloc(attribute->attribute_length * sizeof(char));
 
 		int bytesRead = fread(attribute->info, 1, attribute->attribute_length, file);
 		if(bytesRead != attribute->attribute_length)
 		{
 			return PARSE_FILE_CUT_OFF;
 		}
+
+		char * attribute_name = derefConstant(ci, attribute->attribute_name_index);
+		if(strcmp(attribute_name, "SourceFile") == 0) get_source_file_info(attribute);
+		if(strcmp(attribute_name, "Code"      ) == 0) get_code_info(attribute);
 	}
 
 	return PARSE_OK;
+}
+
+int print_ExceptionInfo(ExceptionInfo * ei)
+{
+	printf("\t\t\tStart_PC: %i\n", ei->start_pc);
+	printf("\t\t\tEnd_PC: %i\n", ei->end_pc);
+	printf("\t\t\tHandler_PC: %i\n", ei->handler_pc);
+	printf("\t\t\tCatch_PC: %i\n", ei->catch_type);
+}
+
+int print_code_info(char * info)
+{
+	CodeInfo * code = (CodeInfo *) info;
+	printf("\t\tMax Stack: %i\n", code->max_stack);
+	printf("\t\tMax Locals: %i\n", code->max_locals);
+	printf("\t\tCode Length: %i\n", code->code_length);
+	printf("\t\tException Table Length: %i\n", code->exception_table_length);
+	for(int i = 0; i < code->exception_table_length; i++)
+	{
+		print_ExceptionInfo(&code->exception_table[i]);
+		puts("");
+	}
+	printf("\t\tAttributes Count: %i\n", code->attributes_count);
 }
 
 int printAttributes(ClassInfo * ci, AttributeInfo * ai, short attributes_count)
@@ -194,7 +290,14 @@ int printAttributes(ClassInfo * ci, AttributeInfo * ai, short attributes_count)
 		printf("\t%s: ", attribute_name);
 		if(strcmp(attribute_name, "SourceFile") == 0)
 		{
-			printf("%s\n", derefConstant(ci, *(short *) ai[i].info));
+			SourceFileInfo * source_file = (SourceFileInfo *) ai[i].info;
+			unsigned index = source_file->sourcefile_index;
+			printf("%s", derefConstant(ci, index));
+		}
+		if(strcmp(attribute_name, "Code") == 0 )
+		{
+			puts("");
+			print_code_info(ai[i].info);
 		}
 		puts("");
 		printf("\t\tLength: %i\n", ai[i].attribute_length);
@@ -212,7 +315,7 @@ int getFields(ClassInfo * ci, FILE * file)
 		ReturnError(readShort(&field->name_index, file));
 		ReturnError(readShort(&field->descriptor_index, file));
 		ReturnError(readShort(&field->attributes_count, file));
-		ReturnError(getAttributes(&field->attributes, field->attributes_count, file));
+		ReturnError(getAttributes(ci, &field->attributes, field->attributes_count, file));
 	}
 
 	return PARSE_OK;
@@ -237,7 +340,7 @@ int getMethods(ClassInfo * ci, FILE * file)
 		ReturnError(readShort(&method->name_index, file));
 		ReturnError(readShort(&method->descriptor_index, file));
 		ReturnError(readShort(&method->attributes_count, file));
-		ReturnError(getAttributes(&method->attributes, method->attributes_count, file));
+		ReturnError(getAttributes(ci, &method->attributes, method->attributes_count, file));
 	}
 
 	return PARSE_OK;
@@ -265,7 +368,7 @@ int scan(ClassInfo * ci, FILE * file)
 	ReturnError(getFields(ci, file));
 	ReturnError(getMethods(ci, file));
 	ReturnError(readShort(&ci->attributes_count, file));
-	ReturnError(getAttributes(&ci->attributes, ci->attributes_count, file));
+	ReturnError(getAttributes(ci, &ci->attributes, ci->attributes_count, file));
 
 	return PARSE_OK;
 }
@@ -274,8 +377,7 @@ void printClassInfo(ClassInfo * ci)
 {
 	printf("Class Version: %i.%i\n", ci->majorVersion, ci->minorVersion);
 	printf("Number of Constants: %i\n", ci->constant_pool_count);
-	printConstantInfo(ci);
-	printf("\nAccess Flags: %#06x\n", ci->access_flags);
+	printf("Access Flags: %#06x\n", ci->access_flags);
 	printf("Class: %s\n", derefConstant(ci, ci->constant_pool[ci->this_class].name_index));
 	printf("Super Class: %s\n", derefConstant(ci, ci->constant_pool[ci->super_class].name_index));
 	printf("Number of Interfaces: %i\n", ci->interfaces_count);
@@ -290,7 +392,7 @@ int main(int argc, char const *argv[])
 {
 	if(argc < 2)
 	{
-		puts("Format: ./parsing filename\n");
+		puts("Format: ./scanning filename\n");
 		return 1;
 	}
 

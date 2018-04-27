@@ -46,8 +46,6 @@ typedef struct _cp_info
 	short length;
 } CPInfo;
 
-#pragma pack(pop)
-
 #define ACC_PUBLIC		0x0001
 #define ACC_FINAL		0x0010
 #define ACC_SUPER		0x0020
@@ -63,6 +61,31 @@ typedef struct _attribute_info
 	int attribute_length;
 	char * info;
 } AttributeInfo;
+
+typedef struct _source_file_info
+{
+	unsigned short sourcefile_index;
+} SourceFileInfo;
+
+typedef struct _exception_info
+{
+	short start_pc;
+	short end_pc;
+	short handler_pc;
+	short catch_type;
+} ExceptionInfo;
+
+typedef struct _code_info
+{
+    short max_stack;
+    short max_locals;
+    int code_length;
+    char * code;
+    short exception_table_length;
+    ExceptionInfo * exception_table;
+    short attributes_count;
+    AttributeInfo * attributes;
+} CodeInfo;
 
 typedef struct _field_info
 {
@@ -101,4 +124,5 @@ typedef struct _classInfo
 	AttributeInfo * attributes;
 } ClassInfo;
 
+#pragma pack(pop)
 #endif
