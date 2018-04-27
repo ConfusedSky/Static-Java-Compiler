@@ -192,6 +192,38 @@ int get_source_file_info(AttributeInfo * ai)
 	return PARSE_OK;
 }
 
+int get_code_info(ClassInfo * ci, AttributeInfo * ai);
+
+int getAttributeInfo(ClassInfo * ci, AttributeInfo * attribute)
+{
+	char * attribute_name = derefConstant(ci, attribute->attribute_name_index);
+	if(strcmp(attribute_name, "SourceFile") == 0) get_source_file_info(attribute);
+	if(strcmp(attribute_name, "Code"      ) == 0) get_code_info(ci, attribute);
+}
+	
+int getAttributes(ClassInfo * ci, AttributeInfo ** ai, short attributes_count, FILE * file)
+{
+	*ai = (AttributeInfo *) malloc(sizeof(AttributeInfo) * attributes_count);
+	for(int i = 0; i < attributes_count; i++)
+	{
+		AttributeInfo * attribute = &((*ai)[i]);
+		ReturnError(readShort(&attribute->attribute_name_index, file));
+		ReturnError(readInt(&attribute->attribute_length, 4, file));
+
+		attribute->info = (char *) malloc(attribute->attribute_length * sizeof(char));
+
+		int bytesRead = fread(attribute->info, 1, attribute->attribute_length, file);
+		if(bytesRead != attribute->attribute_length)
+		{
+			return PARSE_FILE_CUT_OFF;
+		}
+		
+		return getAttributeInfo(ci, attribute);
+	}
+
+	return PARSE_OK;
+}
+
 int get_exception_info(char * exception_info)
 {
 	reverseBytes(exception_info, 2);
@@ -204,7 +236,7 @@ int get_exception_info(char * exception_info)
 	exception_info += 2;
 }
 
-int get_code_info(AttributeInfo * ai)
+int get_code_info(ClassInfo * ci, AttributeInfo * ai)
 {
 	char * info = ai->info;
 	CodeInfo * code = (CodeInfo *) info;
@@ -225,36 +257,33 @@ int get_code_info(AttributeInfo * ai)
 		memcpy((void *) &(exception_table[i]), info, sizeof(exception_table_length));
 		info += 8;
 	}
-	code->exception_table_length = exception_table_length;
-	code->exception_table = exception_table;
 
 	reverseBytes(info, 2);
-	code->attributes_count = *(short *) info;
+	short attributes_count = *(short *) info;
 	info += 2;
 
-	return PARSE_OK;
-}
+	AttributeInfo * attributes = (AttributeInfo *) malloc(attributes_count * sizeof(AttributeInfo));
 
-int getAttributes(ClassInfo * ci, AttributeInfo ** ai, short attributes_count, FILE * file)
-{
-	*ai = (AttributeInfo *) malloc(sizeof(AttributeInfo) * attributes_count);
 	for(int i = 0; i < attributes_count; i++)
 	{
-		AttributeInfo * attribute = &((*ai)[i]);
-		ReturnError(readShort(&attribute->attribute_name_index, file));
-		ReturnError(readInt(&attribute->attribute_length, 4, file));
-		attribute->info = (char *) malloc(attribute->attribute_length * sizeof(char));
+		reverseBytes(info, 2);
+		attributes[i].attribute_name_index = *(short *) info;
+		info += 2;
+		reverseBytes(info, 4);
+		attributes[i].attribute_length = *(int *) info;
+		info += 4;
 
-		int bytesRead = fread(attribute->info, 1, attribute->attribute_length, file);
-		if(bytesRead != attribute->attribute_length)
-		{
-			return PARSE_FILE_CUT_OFF;
-		}
+		attributes[i].info = malloc(attributes[i].attribute_length);
+		memcpy((void *) &(attributes[i].info), info, attributes[i].attribute_length);
+		info += attributes[i].attribute_length;
 
-		char * attribute_name = derefConstant(ci, attribute->attribute_name_index);
-		if(strcmp(attribute_name, "SourceFile") == 0) get_source_file_info(attribute);
-		if(strcmp(attribute_name, "Code"      ) == 0) get_code_info(attribute);
+		getAttributeInfo(ci, &(attributes[i]));
 	}
+
+	code->exception_table_length = exception_table_length;
+	code->exception_table = exception_table;
+	code->attributes_count = attributes_count;
+	code->attributes = attributes;
 
 	return PARSE_OK;
 }
@@ -267,7 +296,9 @@ int print_ExceptionInfo(ExceptionInfo * ei)
 	printf("\t\t\tCatch_PC: %i\n", ei->catch_type);
 }
 
-int print_code_info(char * info)
+int printAttributesD(ClassInfo *, AttributeInfo *, short, int depth);
+
+int print_code_info(ClassInfo * ci, char * info)
 {
 	CodeInfo * code = (CodeInfo *) info;
 	printf("\t\tMax Stack: %i\n", code->max_stack);
@@ -280,13 +311,23 @@ int print_code_info(char * info)
 		puts("");
 	}
 	printf("\t\tAttributes Count: %i\n", code->attributes_count);
+	printAttributesD(ci, code->attributes, code->attributes_count, 2);
 }
 
-int printAttributes(ClassInfo * ci, AttributeInfo * ai, short attributes_count)
+int putTabs(int depth)
+{
+	for(int i = 0; i < depth; i++)
+	{
+		putchar('\t');
+	}
+}
+
+int printAttributesD(ClassInfo * ci, AttributeInfo * ai, short attributes_count, int depth)
 {
 	for(int i = 0; i < attributes_count; i++)
 	{
 		char * attribute_name = derefConstant(ci, ai[i].attribute_name_index);
+		putTabs(depth);
 		printf("\t%s: ", attribute_name);
 		if(strcmp(attribute_name, "SourceFile") == 0)
 		{
@@ -297,11 +338,17 @@ int printAttributes(ClassInfo * ci, AttributeInfo * ai, short attributes_count)
 		if(strcmp(attribute_name, "Code") == 0 )
 		{
 			puts("");
-			print_code_info(ai[i].info);
+			print_code_info(ci, ai[i].info);
 		}
 		puts("");
+		putTabs(depth);
 		printf("\t\tLength: %i\n", ai[i].attribute_length);
 	}
+}
+
+int printAttributes(ClassInfo * ci, AttributeInfo * ai, short attributes_count)
+{
+	printAttributesD(ci, ai, attributes_count, 0);
 }
 
 int getFields(ClassInfo * ci, FILE * file)
