@@ -199,6 +199,8 @@ int getAttributeInfo(ClassInfo * ci, AttributeInfo * attribute)
 	char * attribute_name = derefConstant(ci, attribute->attribute_name_index);
 	if(strcmp(attribute_name, "SourceFile") == 0) get_source_file_info(attribute);
 	if(strcmp(attribute_name, "Code"      ) == 0) get_code_info(ci, attribute);
+
+	return PARSE_OK;
 }
 	
 int getAttributes(ClassInfo * ci, AttributeInfo ** ai, short attributes_count, FILE * file)
@@ -224,18 +226,6 @@ int getAttributes(ClassInfo * ci, AttributeInfo ** ai, short attributes_count, F
 	return PARSE_OK;
 }
 
-int get_exception_info(char * exception_info)
-{
-	reverseBytes(exception_info, 2);
-	exception_info += 2;
-	reverseBytes(exception_info, 2);
-	exception_info += 2;
-	reverseBytes(exception_info, 2);
-	exception_info += 2;
-	reverseBytes(exception_info, 2);
-	exception_info += 2;
-}
-
 int get_code_info(ClassInfo * ci, AttributeInfo * ai)
 {
 	char * info = ai->info;
@@ -253,9 +243,18 @@ int get_code_info(ClassInfo * ci, AttributeInfo * ai)
 	info += 2;
 	for(int i = 0; i < exception_table_length; i++)
 	{
-		get_exception_info(info);
-		memcpy((void *) &(exception_table[i]), info, sizeof(exception_table_length));
-		info += 8;
+		reverseBytes(info, 2);
+		exception_table[i].start_pc = *(short *) info;
+		info += 2;
+		reverseBytes(info, 2);
+		exception_table[i].end_pc = *(short *) info;
+		info += 2;
+		reverseBytes(info, 2);
+		exception_table[i].handler_pc = *(short *) info;
+		info += 2;
+		reverseBytes(info, 2);
+		exception_table[i].catch_type = *(short *) info;
+		info += 2;
 	}
 
 	reverseBytes(info, 2);
@@ -293,7 +292,7 @@ int print_ExceptionInfo(ExceptionInfo * ei)
 	printf("\t\t\tStart_PC: %i\n", ei->start_pc);
 	printf("\t\t\tEnd_PC: %i\n", ei->end_pc);
 	printf("\t\t\tHandler_PC: %i\n", ei->handler_pc);
-	printf("\t\t\tCatch_PC: %i\n", ei->catch_type);
+	printf("\t\t\tCatch_Type: %i\n", ei->catch_type);
 }
 
 int printAttributesD(ClassInfo *, AttributeInfo *, short, int depth);
@@ -424,6 +423,7 @@ void printClassInfo(ClassInfo * ci)
 {
 	printf("Class Version: %i.%i\n", ci->majorVersion, ci->minorVersion);
 	printf("Number of Constants: %i\n", ci->constant_pool_count);
+	printConstantInfo(ci);
 	printf("Access Flags: %#06x\n", ci->access_flags);
 	printf("Class: %s\n", derefConstant(ci, ci->constant_pool[ci->this_class].name_index));
 	printf("Super Class: %s\n", derefConstant(ci, ci->constant_pool[ci->super_class].name_index));
