@@ -1,6 +1,6 @@
-./scanning ../testcases/Test.class
-./scanning ../testcases/Test1.class
-./scanning ../testcases/Test2.class
-./scanning ../testcases/Test3.class
-./scanning ../testcases/Test4.class
-./scanning ../testcases/Test5.class
+./staticCompiler ../testcases/Test.class
+./staticCompiler ../testcases/Test1.class
+./staticCompiler ../testcases/Test2.class
+./staticCompiler ../testcases/Test3.class
+./staticCompiler ../testcases/Test4.class
+./staticCompiler ../testcases/Test5.class

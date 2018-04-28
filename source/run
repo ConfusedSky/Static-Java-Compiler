@@ -1,1 +1,1 @@
-./scanning ../testcases/Test.class
+./staticCompiler ../testcases/Test.class

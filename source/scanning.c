@@ -435,6 +435,7 @@ void printClassInfo(ClassInfo * ci)
 	printAttributes(ci, ci->attributes, ci->attributes_count);
 }
 
+#ifdef SCANNING_MAIN 
 int main(int argc, char const *argv[])
 {
 	if(argc < 2)
@@ -478,3 +479,4 @@ int main(int argc, char const *argv[])
 	fclose(file);
 	return returnValue;
 }
+#endif
