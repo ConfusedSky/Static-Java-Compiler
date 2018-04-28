@@ -1,1 +1,0 @@
-gcc parsing.c scanning.c -ggdb -o staticCompiler -DPARSING_MAIN

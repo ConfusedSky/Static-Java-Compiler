@@ -1,6 +1,0 @@
-./staticCompiler ../testcases/Test.class
-./staticCompiler ../testcases/Test1.class
-./staticCompiler ../testcases/Test2.class
-./staticCompiler ../testcases/Test3.class
-./staticCompiler ../testcases/Test4.class
-./staticCompiler ../testcases/Test5.class

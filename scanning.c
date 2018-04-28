@@ -2,12 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "javastructures.h"
-
-#define PARSE_OK 0
-#define PARSE_NOT_OK 1
-#define PARSE_FILE_CUT_OFF 2
-#define PARSE_NOT_OPENED 3
-#define PARSE_CONSTANT_TAG_NOT_DEFINED 4
+#include "scanning.h"
 
 #define ReturnError(returnValue) {int r = returnValue; if(r){printf("Failed at line: %i\n", __LINE__); return r;}}
 #define SWAP(a, b) {a ^= b; b ^= a; a ^= b;}
@@ -23,7 +18,7 @@ int reverseBytes(char * bytes, int nBytes)
 		end--;
 	}
 
-	return PARSE_OK;
+	return SCAN_OK;
 }
 
 int readInt(int * value, int nBytes, FILE * file)
@@ -39,11 +34,11 @@ int readInt(int * value, int nBytes, FILE * file)
 			*value += bytes[i] << (8 * (nBytes - 1 - i));
 		}
 
-		return PARSE_OK;
+		return SCAN_OK;
 	}
 	else
 	{
-		return PARSE_FILE_CUT_OFF;
+		return SCAN_FILE_CUT_OFF;
 	}
 }
 
@@ -65,11 +60,11 @@ int checkMagic(FILE * file)
 
 	if(!(magic^0xCAFEBABE))
 	{
-		return PARSE_OK;
+		return SCAN_OK;
 	}
 	else
 	{
-		return PARSE_NOT_OK;
+		return SCAN_NOT_OK;
 	}
 }
 
@@ -78,7 +73,7 @@ int getVersionInfo(ClassInfo * info, FILE * file)
 	ReturnError(readShort(&(info->minorVersion), file));
 	ReturnError(readShort(&(info->majorVersion), file));
 
-	return PARSE_OK;
+	return SCAN_OK;
 }
 
 void printConstantInfo(ClassInfo * ci);
@@ -117,19 +112,19 @@ int getConstantInfo(ClassInfo * ci, FILE * file)
 				int bytesRead = fread(info->chars, 1, info->length, file);
 				if(bytesRead != info->length)
 				{
-					return PARSE_FILE_CUT_OFF;
+					return SCAN_FILE_CUT_OFF;
 				}
 				info->chars[info->length] = 0;
 				break;
 
 			default:
 				printConstantInfo(ci);
-				return PARSE_CONSTANT_TAG_NOT_DEFINED;
+				return SCAN_CONSTANT_TAG_NOT_DEFINED;
 		}
 		
 	}
 
-	return PARSE_OK;
+	return SCAN_OK;
 }
 
 void printConstantInfo(ClassInfo * ci)
@@ -183,13 +178,13 @@ int getInterfaces(ClassInfo * ci, FILE * file)
 		ReturnError(readShort(&ci->interfaces[i], file)); 
 	}
 
-	return PARSE_OK;
+	return SCAN_OK;
 }
 
 int get_source_file_info(AttributeInfo * ai)
 {
 	reverseBytes(ai->info, 2);
-	return PARSE_OK;
+	return SCAN_OK;
 }
 
 int get_code_info(ClassInfo * ci, AttributeInfo * ai);
@@ -200,7 +195,7 @@ int getAttributeInfo(ClassInfo * ci, AttributeInfo * attribute)
 	if(strcmp(attribute_name, "SourceFile") == 0) get_source_file_info(attribute);
 	if(strcmp(attribute_name, "Code"      ) == 0) get_code_info(ci, attribute);
 
-	return PARSE_OK;
+	return SCAN_OK;
 }
 	
 int getAttributes(ClassInfo * ci, AttributeInfo ** ai, short attributes_count, FILE * file)
@@ -217,13 +212,13 @@ int getAttributes(ClassInfo * ci, AttributeInfo ** ai, short attributes_count, F
 		int bytesRead = fread(attribute->info, 1, attribute->attribute_length, file);
 		if(bytesRead != attribute->attribute_length)
 		{
-			return PARSE_FILE_CUT_OFF;
+			return SCAN_FILE_CUT_OFF;
 		}
 		
 		return getAttributeInfo(ci, attribute);
 	}
 
-	return PARSE_OK;
+	return SCAN_OK;
 }
 
 int get_code_info(ClassInfo * ci, AttributeInfo * ai)
@@ -284,7 +279,7 @@ int get_code_info(ClassInfo * ci, AttributeInfo * ai)
 	code->attributes_count = attributes_count;
 	code->attributes = attributes;
 
-	return PARSE_OK;
+	return SCAN_OK;
 }
 
 int print_ExceptionInfo(ExceptionInfo * ei)
@@ -364,7 +359,7 @@ int getFields(ClassInfo * ci, FILE * file)
 		ReturnError(getAttributes(ci, &field->attributes, field->attributes_count, file));
 	}
 
-	return PARSE_OK;
+	return SCAN_OK;
 }
 
 void printFields(ClassInfo * ci)
@@ -389,7 +384,7 @@ int getMethods(ClassInfo * ci, FILE * file)
 		ReturnError(getAttributes(ci, &method->attributes, method->attributes_count, file));
 	}
 
-	return PARSE_OK;
+	return SCAN_OK;
 }
 
 void printMethods(ClassInfo * ci)
@@ -416,7 +411,7 @@ int scan(ClassInfo * ci, FILE * file)
 	ReturnError(readShort(&ci->attributes_count, file));
 	ReturnError(getAttributes(ci, &ci->attributes, ci->attributes_count, file));
 
-	return PARSE_OK;
+	return SCAN_OK;
 }
 
 void printClassInfo(ClassInfo * ci)
@@ -449,7 +444,7 @@ int main(int argc, char const *argv[])
 	if(!file)
 	{
 		puts("File was not opened.\n");
-		return PARSE_NOT_OPENED;
+		return SCAN_NOT_OPENED;
 	}
 
 	ClassInfo ci;
@@ -457,16 +452,16 @@ int main(int argc, char const *argv[])
 
 	switch(returnValue)
 	{
-		case PARSE_OK:
+		case SCAN_OK:
 			puts("File correct format.\n");
 			break;
-		case PARSE_NOT_OK:
+		case SCAN_NOT_OK:
 			puts("File incorrect format.\n");
 			break;
-		case PARSE_FILE_CUT_OFF:
+		case SCAN_FILE_CUT_OFF:
 			puts("File was cut off.\n");
 			break;
-		case PARSE_CONSTANT_TAG_NOT_DEFINED:
+		case SCAN_CONSTANT_TAG_NOT_DEFINED:
 			puts("Constant tag not defined.\n");
 			break;
 		default:
