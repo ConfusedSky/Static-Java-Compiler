@@ -151,8 +151,8 @@ int getConstantInfo(ClassInfo * ci, FILE * file)
 
 		switch(info->tag)
 		{
-			case CONSTANT_String:
 			case CONSTANT_Class:
+			case CONSTANT_String:
 				ReturnError(readShort(&(info->name_index), file));
 				break;
 
@@ -165,6 +165,10 @@ int getConstantInfo(ClassInfo * ci, FILE * file)
 			case CONSTANT_NameAndType:
 				ReturnError(readShort(&(info->name_index), file));
 				ReturnError(readShort(&(info->descriptor_index), file));
+				break;
+
+			case CONSTANT_Integer:
+				ReturnError(readInt(&(info->bytes), file));
 				break;
 
 			case CONSTANT_Utf8:
@@ -196,10 +200,6 @@ void printConstantInfo(ClassInfo * ci)
 
 		switch(info->tag)
 		{
-			case CONSTANT_String:
-				printf("%2i String: Name index(%i)\n", i, info->string_index);
-				printf("\tName: %s\n", derefConstant(ci, info->string_index));
-				break;
 			case CONSTANT_Class:
 				printf("%2i Class: Name index(%i)\n", i, info->name_index);
 				printf("\tName: %s\n", derefConstant(ci, info->name_index));
@@ -215,6 +215,13 @@ void printConstantInfo(ClassInfo * ci)
 				printf("\tClass: %s\n", derefConstant(ci, ci->constant_pool[info->class_index].name_index));
 				printf("\tName: %s\n", derefConstant(ci, ci->constant_pool[info->name_and_type_index].name_index));
 				printf("\tDescriptor: %s\n", derefConstant(ci, ci->constant_pool[info->name_and_type_index].descriptor_index));
+				break;
+			case CONSTANT_String:
+				printf("%2i String: Name index(%i)\n", i, info->string_index);
+				printf("\tName: %s\n", derefConstant(ci, info->string_index));
+				break;
+			case CONSTANT_Integer:
+				printf("%2i Integer: Value(%i)\n", i, info->bytes);
 				break;
 			case CONSTANT_NameAndType:
 				printf("%2i Name and Type info: Name index(%i), Descriptor index(%i)\n", i, info->name_index, info->descriptor_index);
@@ -438,7 +445,8 @@ void printFields(ClassInfo * ci)
 {
 	for(int i = 0; i < ci->fields_count; i++)
 	{
-		printf("%#06x,%s,%s\n", ci->fields[i].access_flags, derefConstant(ci, ci->fields[i].name_index), derefConstant(ci, ci->fields[i].descriptor_index));
+		printf("%#06x, %s, %s\n", ci->fields[i].access_flags, derefConstant(ci, ci->fields[i].name_index), derefConstant(ci, ci->fields[i].descriptor_index));
+		printAttributes(ci, ci->fields[i].attributes, ci->fields[i].attributes_count);
 	}
 }
 
@@ -499,6 +507,7 @@ void printClassInfo(ClassInfo * ci)
 	printf("Super Class: %s\n", derefConstant(ci, ci->constant_pool[ci->super_class].name_index));
 	printf("Number of Interfaces: %i\n", ci->interfaces_count);
 	printf("Number of Fields: %i\n", ci->fields_count);
+	printFields(ci);
 	printf("\nNumber of Methods: %i\n", ci->methods_count);
 	printMethods(ci);
 	printf("\nNumber of Attributes: %i\n", ci->attributes_count);
@@ -553,7 +562,7 @@ int main(int argc, char const *argv[])
 	ClassInfo ci;
 	int returnValue = scanMain(argc, argv, &ci);
 
-	if(returnValue != SCAN_NOT_OPENED)
+	if(returnValue == SCAN_OK)
 	{
 		printClassInfo(&ci);
 		CIFree(&ci);

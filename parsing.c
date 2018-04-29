@@ -7,7 +7,7 @@ int main(int argc, char const *argv[])
 	ClassInfo ci;
 	int returnValue = scanMain(argc, argv, &ci);
 
-	if(returnValue != SCAN_NOT_OPENED)
+	if(returnValue == SCAN_OK)
 	{
 		CIFree(&ci);
 	}
