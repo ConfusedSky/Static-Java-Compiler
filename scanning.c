@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "javastructures.h"
@@ -254,6 +253,7 @@ int get_code_info(ClassInfo * ci, AttributeInfo * ai);
 int getAttributeInfo(ClassInfo * ci, AttributeInfo * attribute)
 {
 	char * attribute_name = derefConstant(ci, attribute->attribute_name_index);
+
 	if(strcmp(attribute_name, "SourceFile") == 0) get_source_file_info(attribute);
 	if(strcmp(attribute_name, "Code"      ) == 0) get_code_info(ci, attribute);
 
@@ -285,6 +285,13 @@ int getAttributes(ClassInfo * ci, AttributeInfo ** ai, short attributes_count, F
 
 int get_code_info(ClassInfo * ci, AttributeInfo * ai)
 {
+	if(ai->attribute_length < sizeof(CodeInfo))
+	{
+		char * temp = CIMalloc(ci, sizeof(CodeInfo));
+		memcpy(temp, ai->info, ai->attribute_length);
+		ai->info = temp;
+	}
+
 	char * info = ai->info;
 	CodeInfo * code = (CodeInfo *) info;
 	reverseBytes(info, 2);
@@ -498,13 +505,12 @@ void printClassInfo(ClassInfo * ci)
 	printAttributes(ci, ci->attributes, ci->attributes_count);
 }
 
-#ifdef SCANNING_MAIN 
-int main(int argc, char const *argv[])
+int scanMain(int argc, char const *argv[], ClassInfo * ci)
 {
 	if(argc < 2)
 	{
-		puts("Format: ./scanning filename\n");
-		return 1;
+		printf("Format: %s filename\n\n", argv[0]);
+		return SCAN_NOT_OPENED;
 	}
 
 	FILE * file;
@@ -515,8 +521,7 @@ int main(int argc, char const *argv[])
 		return SCAN_NOT_OPENED;
 	}
 
-	ClassInfo ci;
-	int returnValue = scan(&ci, file);
+	int returnValue = scan(ci, file);
 
 	switch(returnValue)
 	{
@@ -537,10 +542,23 @@ int main(int argc, char const *argv[])
 			break;
 	}
 
-	printClassInfo(&ci);
 
-	CIFree(&ci);
 	fclose(file);
+	return returnValue;
+}
+
+#ifdef SCANNING_MAIN 
+int main(int argc, char const *argv[])
+{
+	ClassInfo ci;
+	int returnValue = scanMain(argc, argv, &ci);
+
+	if(returnValue != SCAN_NOT_OPENED)
+	{
+		printClassInfo(&ci);
+		CIFree(&ci);
+	}
+
 	return returnValue;
 }
 #endif
