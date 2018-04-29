@@ -27,18 +27,18 @@ typedef struct _cp_info
 			{
 				int highBytes;
 				int bytes;
-				int class_index;
-				int name_index;
-				int string_index;
+				short class_index;
+				short name_index;
+				short string_index;
 				int reference_kind;
 			};
 			// 4 bytes
 			union
 			{
 				int lowBytes;
-				int name_and_type_index;
-				int reference_index;
-				int descriptor_index;
+				short name_and_type_index;
+				short reference_index;
+				short descriptor_index;
 			};
 		};
 	};
@@ -122,6 +122,9 @@ typedef struct _classInfo
 	MethodInfo * methods;
 	short attributes_count;
 	AttributeInfo * attributes;
+	short pointer_count;
+	short max_pointer_count;
+	void ** pointers;
 } ClassInfo;
 
 #pragma pack(pop)

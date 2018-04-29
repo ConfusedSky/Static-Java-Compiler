@@ -7,6 +7,34 @@
 #define ReturnError(returnValue) {int r = returnValue; if(r){printf("Failed at line: %i\n", __LINE__); return r;}}
 #define SWAP(a, b) {a ^= b; b ^= a; a ^= b;}
 
+void * CIMalloc(ClassInfo * ci, int size)
+{
+	ci->pointer_count++;
+	if(ci->pointer_count == ci->max_pointer_count)
+	{
+		ci->max_pointer_count *= 2;
+		ci->pointers = realloc(ci->pointers, sizeof(void *) * ci->max_pointer_count);
+	}
+	
+	void * temp = malloc(size);
+
+	if(temp == NULL)
+	{
+		puts("There was a failure in malloc");
+	}
+
+	return ci->pointers[ci->pointer_count-1] = temp;
+}
+
+void CIFree(ClassInfo * ci)
+{
+	for(int i = 0; i < ci->pointer_count; i++)
+	{
+		free(ci->pointers[i]);
+	}
+	free(ci->pointers);
+}
+
 int reverseBytes(char * bytes, int nBytes)
 {
 	char * end = bytes + nBytes - 1;
@@ -21,17 +49,17 @@ int reverseBytes(char * bytes, int nBytes)
 	return SCAN_OK;
 }
 
-int readInt(int * value, int nBytes, FILE * file)
+int readInt(int * value, FILE * file)
 {
 	unsigned char bytes[4];
 	*value = 0;
-	unsigned int bytesRead = fread(&bytes, 1, nBytes, file);
+	unsigned int bytesRead = fread(&bytes, 1, 4, file);
 
-	if(bytesRead == nBytes)
+	if(bytesRead == 4)
 	{
-		for(int i = 0; i < nBytes; i++)
+		for(int i = 0; i < 4; i++)
 		{
-			*value += bytes[i] << (8 * (nBytes - 1 - i));
+			*value += bytes[i] << (8 * (4 - 1 - i));
 		}
 
 		return SCAN_OK;
@@ -44,7 +72,41 @@ int readInt(int * value, int nBytes, FILE * file)
 
 int readShort(short * value, FILE * file)
 {
-	return readInt((int *) value, 2, file);
+	unsigned char bytes[2];
+	*value = 0;
+	unsigned int bytesRead = fread(&bytes, 1, 2, file);
+
+	if(bytesRead == 2)
+	{
+		for(int i = 0; i < 2; i++)
+		{
+			*value += bytes[i] << (8 * (2 - 1 - i));
+		}
+
+		return SCAN_OK;
+	}
+	else
+	{
+		return SCAN_FILE_CUT_OFF;
+	}
+}
+
+int readChar(char * value, FILE * file)
+{
+	unsigned char bytes;
+	*value = 0;
+	unsigned int bytesRead = fread(&bytes, 1, 1, file);
+
+	if(bytesRead == 1)
+	{
+		*value = bytes;
+
+		return SCAN_OK;
+	}
+	else
+	{
+		return SCAN_FILE_CUT_OFF;
+	}
 }
 
 char * derefConstant(ClassInfo * ci, int name_index)
@@ -56,7 +118,7 @@ int checkMagic(FILE * file)
 {
 	unsigned int magic;
 
-	ReturnError(readInt(&magic, 4, file));
+	ReturnError(readInt(&magic, file));
 
 	if(!(magic^0xCAFEBABE))
 	{
@@ -81,34 +143,34 @@ void printConstantInfo(ClassInfo * ci);
 int getConstantInfo(ClassInfo * ci, FILE * file)
 {
 	ReturnError(readShort(&(ci->constant_pool_count), file));
-	ci->constant_pool = (CPInfo *) malloc(sizeof(CPInfo) * ci->constant_pool_count);
+	ci->constant_pool = (CPInfo *) CIMalloc(ci, sizeof(CPInfo) * ci->constant_pool_count);
 
 	for(int i = 1; i < ci->constant_pool_count; i++)
 	{
 		CPInfo * info = &ci->constant_pool[i];
-		ReturnError(readInt((int *) &(info->tag), 1, file));
+		ReturnError(readChar((char *) &(info->tag), file));
 
 		switch(info->tag)
 		{
 			case CONSTANT_String:
 			case CONSTANT_Class:
-				ReturnError(readInt(&(info->name_index), 2, file));
+				ReturnError(readShort(&(info->name_index), file));
 				break;
 
 			case CONSTANT_Fieldref:
 			case CONSTANT_Methodref:
-				ReturnError(readInt(&(info->class_index), 2, file));
-				ReturnError(readInt(&(info->name_and_type_index), 2, file));
+				ReturnError(readShort(&(info->class_index), file));
+				ReturnError(readShort(&(info->name_and_type_index), file));
 				break;
 
 			case CONSTANT_NameAndType:
-				ReturnError(readInt(&(info->name_index), 2, file));
-				ReturnError(readInt(&(info->descriptor_index), 2, file));
+				ReturnError(readShort(&(info->name_index), file));
+				ReturnError(readShort(&(info->descriptor_index), file));
 				break;
 
 			case CONSTANT_Utf8:
 				ReturnError(readShort(&(info->length), file));
-				info->chars = (char *) malloc(sizeof(char) * (info->length+1));
+				info->chars = (char *) CIMalloc(ci, sizeof(char) * (info->length+1));
 				int bytesRead = fread(info->chars, 1, info->length, file);
 				if(bytesRead != info->length)
 				{
@@ -172,7 +234,7 @@ void printConstantInfo(ClassInfo * ci)
 int getInterfaces(ClassInfo * ci, FILE * file)
 {
 	ReturnError(readShort(&ci->interfaces_count, file));
-	ci->interfaces = (short *) malloc(sizeof(short) * ci->interfaces_count);
+	ci->interfaces = (short *) CIMalloc(ci, sizeof(short) * ci->interfaces_count);
 	for(int i = 0; i < ci->interfaces_count; i++)
 	{
 		ReturnError(readShort(&ci->interfaces[i], file)); 
@@ -200,14 +262,14 @@ int getAttributeInfo(ClassInfo * ci, AttributeInfo * attribute)
 	
 int getAttributes(ClassInfo * ci, AttributeInfo ** ai, short attributes_count, FILE * file)
 {
-	*ai = (AttributeInfo *) malloc(sizeof(AttributeInfo) * attributes_count);
+	*ai = (AttributeInfo *) CIMalloc(ci, sizeof(AttributeInfo) * attributes_count);
 	for(int i = 0; i < attributes_count; i++)
 	{
 		AttributeInfo * attribute = &((*ai)[i]);
 		ReturnError(readShort(&attribute->attribute_name_index, file));
-		ReturnError(readInt(&attribute->attribute_length, 4, file));
+		ReturnError(readInt(&attribute->attribute_length, file));
 
-		attribute->info = (char *) malloc(attribute->attribute_length * sizeof(char));
+		attribute->info = (char *) CIMalloc(ci, attribute->attribute_length * sizeof(char));
 
 		int bytesRead = fread(attribute->info, 1, attribute->attribute_length, file);
 		if(bytesRead != attribute->attribute_length)
@@ -234,7 +296,7 @@ int get_code_info(ClassInfo * ci, AttributeInfo * ai)
 	info += 4;
 	reverseBytes(info, 2);
 	short exception_table_length = *(short *)info;
-	ExceptionInfo * exception_table = (ExceptionInfo *) malloc(exception_table_length * sizeof(ExceptionInfo));
+	ExceptionInfo * exception_table = (ExceptionInfo *) CIMalloc(ci, exception_table_length * sizeof(ExceptionInfo));
 	info += 2;
 	for(int i = 0; i < exception_table_length; i++)
 	{
@@ -256,7 +318,7 @@ int get_code_info(ClassInfo * ci, AttributeInfo * ai)
 	short attributes_count = *(short *) info;
 	info += 2;
 
-	AttributeInfo * attributes = (AttributeInfo *) malloc(attributes_count * sizeof(AttributeInfo));
+	AttributeInfo * attributes = (AttributeInfo *) CIMalloc(ci, attributes_count * sizeof(AttributeInfo));
 
 	for(int i = 0; i < attributes_count; i++)
 	{
@@ -266,10 +328,13 @@ int get_code_info(ClassInfo * ci, AttributeInfo * ai)
 		reverseBytes(info, 4);
 		attributes[i].attribute_length = *(int *) info;
 		info += 4;
-
-		attributes[i].info = malloc(attributes[i].attribute_length);
-		memcpy((void *) &(attributes[i].info), info, attributes[i].attribute_length);
-		info += attributes[i].attribute_length;
+		
+		if(attributes[i].attribute_length != 0)
+		{
+			attributes[i].info = CIMalloc(ci, attributes[i].attribute_length);
+			memcpy(attributes[i].info, info, attributes[i].attribute_length);
+			info += attributes[i].attribute_length;
+		}
 
 		getAttributeInfo(ci, &(attributes[i]));
 	}
@@ -348,7 +413,7 @@ int printAttributes(ClassInfo * ci, AttributeInfo * ai, short attributes_count)
 int getFields(ClassInfo * ci, FILE * file)
 {
 	ReturnError(readShort(&ci->fields_count, file));
-	ci->fields = (FieldInfo *) malloc(sizeof(FieldInfo) * ci->fields_count);
+	ci->fields = (FieldInfo *) CIMalloc(ci, sizeof(FieldInfo) * ci->fields_count);
 	for(int i = 0; i < ci->fields_count; i++)
 	{
 		FieldInfo * field = &ci->fields[i];
@@ -373,7 +438,7 @@ void printFields(ClassInfo * ci)
 int getMethods(ClassInfo * ci, FILE * file)
 {
 	ReturnError(readShort(&ci->methods_count, file));
-	ci->methods = (MethodInfo *) malloc(sizeof(MethodInfo) * ci->methods_count);
+	ci->methods = (MethodInfo *) CIMalloc(ci, sizeof(MethodInfo) * ci->methods_count);
 	for(int i = 0; i < ci->methods_count; i++)
 	{
 		MethodInfo * method = &ci->methods[i];
@@ -399,6 +464,9 @@ void printMethods(ClassInfo * ci)
 
 int scan(ClassInfo * ci, FILE * file)
 {
+	ci->pointer_count = 0;
+	ci->max_pointer_count = 50;
+	ci->pointers = malloc(sizeof(void *) * ci->max_pointer_count);
 	ReturnError(checkMagic(file));
 	ReturnError(getVersionInfo(ci, file));
 	ReturnError(getConstantInfo(ci, file));
@@ -471,6 +539,7 @@ int main(int argc, char const *argv[])
 
 	printClassInfo(&ci);
 
+	CIFree(&ci);
 	fclose(file);
 	return returnValue;
 }
