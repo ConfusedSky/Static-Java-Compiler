@@ -14,7 +14,8 @@ int scan(ClassInfo * ci, FILE * file);
 
 // CIFree must be called after the ClassInfo is done being used
 // If CIFree is not called there will be significant memory leaks
-int scanMain(int argc, char const *argv[], ClassInfo * ci);
 void CIFree(ClassInfo * ci);
+
+void printClassInfo(ClassInfo * ci);
 
 #endif

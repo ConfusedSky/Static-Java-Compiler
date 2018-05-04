@@ -3,3 +3,6 @@ scanning
 staticCompiler
 *class
 *.swp
+*.o
+types.c
+types.h
