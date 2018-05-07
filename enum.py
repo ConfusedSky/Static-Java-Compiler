@@ -21,16 +21,16 @@ name = content[0]
 values = content[1:]
 
 with open(name + ".h", "w") as f:
-    f.write("extern const char* {}_names[];\n".format(name.upper()))
+    f.write("extern const char* {}_NAMES[];\n".format(name.upper()))
     f.write("typedef enum {\n")
     for value in values:
-        f.write("    {},\n".format(value))
+        f.write("    {}_{},\n".format(name.upper(), value))
     f.seek(-2, 1)
     f.truncate()
     f.write("\n{} {};".format("}", name.upper()))
 
 with open(name + ".c", "w") as f:
-    f.write("const char* {}_names[] = {{\n".format(name.upper()))
+    f.write("const char* {}_NAMES[] = {{\n".format(name.upper()))
     for value in values:
         f.write("    \"{}\",\n".format(value))
     f.seek(-2, 1)
