@@ -4,5 +4,6 @@ staticCompiler
 *class
 *.swp
 *.o
+compile_commands.json
 types.c
 types.h

@@ -1,9 +1,8 @@
 import sys
-import os
 
 if(len(sys.argv) < 2):
-    print("Please enter an input file.");
-    sys.exit();
+    print("Please enter an input file.")
+    sys.exit()
 
 name = ""
 values = []
@@ -13,9 +12,10 @@ with open(sys.argv[1], "r") as f:
 content = [x.strip() for x in content]
 
 if(len(content) < 2):
-    print("File is in incorrect format.\nMust be at least 2 lines:\nOne for the name,")
+    print("File is in incorrect format.")
+    print("Must be at least 2 lines:\nOne for the name,")
     print("And one for at least one enumeration.")
-    sys.exit();
+    sys.exit()
 
 name = content[0]
 values = content[1:]

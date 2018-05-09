@@ -14,7 +14,7 @@
 typedef struct _type
 {
 	TYPES type;
-	Type * subtype;
+	struct _type * subtype;
 } Type;
 
 typedef union _operand

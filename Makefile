@@ -24,3 +24,7 @@ types.c : types.h
 
 types.h : types.enum
 	python enum.py types.enum
+
+.PHONY: clean
+clean : 
+	rm *.o types.c types.h
