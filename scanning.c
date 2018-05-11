@@ -2,9 +2,9 @@
 #include <string.h>
 #include "javastructures.h"
 #include "scanning.h"
+#include "util.h"
 
 #define ReturnError(returnValue) {int r = returnValue; if(r){printf("Failed at line: %i\n", __LINE__); return r;}}
-#define SWAP(a, b) {a ^= b; b ^= a; a ^= b;}
 
 void * CIMalloc(ClassInfo * ci, int size)
 {
@@ -32,20 +32,6 @@ void CIFree(ClassInfo * ci)
 		free(ci->pointers[i]);
 	}
 	free(ci->pointers);
-}
-
-int reverseBytes(char * bytes, int nBytes)
-{
-	char * end = bytes + nBytes - 1;
-
-	while(bytes < end)
-	{
-		SWAP(*bytes, *end);
-		bytes++;
-		end--;
-	}
-
-	return SCAN_OK;
 }
 
 int readInt(int * value, FILE * file)
