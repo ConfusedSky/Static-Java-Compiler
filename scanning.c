@@ -4,8 +4,6 @@
 #include "scanning.h"
 #include "util.h"
 
-#define ReturnError(returnValue) {int r = returnValue; if(r){printf("Failed at line: %i\n", __LINE__); return r;}}
-
 void * CIMalloc(ClassInfo * ci, int size)
 {
 	ci->pointer_count++;
@@ -427,7 +425,7 @@ int getFields(ClassInfo * ci, FILE * file)
 	return SCAN_OK;
 }
 
-void printFields(ClassInfo * ci)
+void printFieldInfos(ClassInfo * ci)
 {
 	for(int i = 0; i < ci->fields_count; i++)
 	{
@@ -453,7 +451,7 @@ int getMethods(ClassInfo * ci, FILE * file)
 	return SCAN_OK;
 }
 
-void printMethods(ClassInfo * ci)
+void printMethodInfos(ClassInfo * ci)
 {
 	for(int i = 0; i < ci->methods_count; i++)
 	{
@@ -493,9 +491,9 @@ void printClassInfo(ClassInfo * ci)
 	printf("Super Class: %s\n", derefConstant(ci, ci->constant_pool[ci->super_class].name_index));
 	printf("Number of Interfaces: %i\n", ci->interfaces_count);
 	printf("Number of Fields: %i\n", ci->fields_count);
-	printFields(ci);
+	printFieldInfos(ci);
 	printf("\nNumber of Methods: %i\n", ci->methods_count);
-	printMethods(ci);
+	printMethodInfos(ci);
 	printf("\nNumber of Attributes: %i\n", ci->attributes_count);
 	printAttributes(ci, ci->attributes, ci->attributes_count);
 }

@@ -1,11 +1,15 @@
 #include "javastructures.h"
+#include "cstructures.h"
 #include "scanning.h"
 #include "parsing.h"
 
 int main(int argc, char const *argv[])
 {
-	ClassInfo class;
-	ClassInfo * ci = &class;
+	ClassInfo classinfo;
+	ClassInfo * ci = &classinfo;
+
+	Class class;
+	Class * c = &class;
 
 	if(argc < 2)
 	{
@@ -46,6 +50,11 @@ int main(int argc, char const *argv[])
 	{
 #ifdef SCANNING_MAIN
 		printClassInfo(ci);
+#endif
+#ifdef PARSING_MAIN
+		returnValue = parse(c, ci);
+
+		printClass(c);
 #endif
 		CIFree(ci);
 	}

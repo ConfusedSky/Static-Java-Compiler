@@ -32,6 +32,7 @@ typedef struct _method
 {
 	char name[100];
 	short access_flags;	
+	int instruction_count;
 	Instruction code[C_CODE_LENGTH];
 	Type return_type;	
 	int parameter_count;
@@ -49,12 +50,12 @@ typedef struct _class
 {
 	char name[100];
 	short access_flags;
-	struct _class * superclass;
+	struct _class * super_class;
 	// Lets not worry about interfaces for now.
 	int field_count;
 	Field fields[10];
-	int methods_count;
+	int method_count;
 	Method methods[50];
-} Class;
+	} Class;
 
 #endif

@@ -1,15 +1,13 @@
 CC=gcc
 flags = -ggdb
 
-parsingObj=parsing.o scanning.o types.o util.o
+parsingObj=parsing.o scanning.o types.o util.o main.c
 parsing: $(parsingObj) 
-	$(CC) -c main.c -DPARSING_MAIN
-	$(CC) $(parsingObj) main.o $(flags) -o parsing -DPARSING_MAIN 
+	$(CC) $(parsingObj) $(flags) -o parsing -DPARSING_MAIN 
 
-scanningObj=scanning.o util.o
+scanningObj=scanning.o util.o main.c
 scanning : $(scanningObj) 
-	$(CC) -c main.c -DSCANNING_MAIN
-	$(CC) $(scanningObj) main.o  $(flags) -o scanning -DSCANNING_MAIN
+	$(CC) $(scanningObj) $(flags) -o scanning -DSCANNING_MAIN
 
 parsing.o : types.h parsing.h parsing.c scanning.h util.h 
 	$(CC) -c parsing.c
