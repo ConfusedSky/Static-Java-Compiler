@@ -2,6 +2,7 @@
 #include "util.h"
 #include <string.h>
 #include <stdlib.h>
+#include "bytecodes.h"
 
 // Char * so it is possible to read in the class type as well, if we ever get to it
 int parseType(char * source, Type * t)
@@ -58,12 +59,49 @@ int parseFields(Class * c, ClassInfo * ci)
 		Field * field = &(c->fields[i]); 
 		FieldInfo * fi = &(ci->fields[i]);
 
-		strcpy(field->name, derefConstant(ci, fi->name_index));
+		strcpy(field->name, derefConstant(ci->constant_pool, fi->name_index));
 		field->access_flags = fi->access_flags;
-		parseType(derefConstant(ci, fi->descriptor_index), &(field->type));
+		parseType(derefConstant(ci->constant_pool, fi->descriptor_index), &(field->type));
 	}
 
 	return 0;
+}
+
+int parseCode(Method * m, MethodInfo * mi, ClassInfo * ci)
+{
+	char * attributeName;
+	CodeInfo * codeInfo = NULL;
+
+	for(int i = 0; i < mi->attributes_count; i++)
+	{
+		attributeName = derefConstant(ci->constant_pool, mi->attributes[i].attribute_name_index);
+		if(strcmp(attributeName, "Code") == 0)
+		{
+			codeInfo = (CodeInfo *) mi->attributes[i].info;
+			break;
+		}
+	}
+
+	if(codeInfo == NULL)
+	{
+		printf("%s does not have a codeInfo attribute\n", m->name);
+		exit(-1);
+	}
+
+	Instruction * currentInstrction = m->code;
+	unsigned char * code = codeInfo->code;
+	for(int i = 0; i < codeInfo->code_length; i++)
+	{
+		currentInstrction->op_code = code[i];
+		int operand_count = getBytecodeOperandCount(code[i]);
+		for(int j = 0; j < operand_count; j++)
+		{
+			i++;
+			currentInstrction->operands[j].value = code[i]; 
+		}
+		currentInstrction++;
+		m->instruction_count++;		
+	}
 }
 
 int parseMethods(Class * c, ClassInfo * ci)
@@ -75,10 +113,10 @@ int parseMethods(Class * c, ClassInfo * ci)
 		Method * method = &( c->methods[i]);
 		MethodInfo * mi = &(ci->methods[i]);
 
-		strcpy(method->name, derefConstant(ci, mi->name_index));
+		strcpy(method->name, derefConstant(ci->constant_pool, mi->name_index));
 		method->access_flags = mi->access_flags;
 		
-		char * descriptor = derefConstant(ci, mi->descriptor_index);
+		char * descriptor = derefConstant(ci->constant_pool, mi->descriptor_index);
 		
 		// Skip the first open parenthesis
 		descriptor++;
@@ -120,6 +158,8 @@ int parseMethods(Class * c, ClassInfo * ci)
 			descriptor++;
 			parseType(descriptor, curType); 
 		}
+
+		parseCode(method, mi, ci);
 	}
 
 	return 0;
@@ -127,7 +167,11 @@ int parseMethods(Class * c, ClassInfo * ci)
 
 int parse(Class * c, ClassInfo * ci)
 {
-	strcpy(c->name, derefConstant(ci, ci->constant_pool[ci->this_class].name_index));
+	c->constant_pool_count = ci->constant_pool_count;
+	c->constant_pool = (CPInfo *) malloc(sizeof(CPInfo) * c->constant_pool_count);
+	memcpy(c->constant_pool, ci->constant_pool, sizeof(CPInfo) * c->constant_pool_count);
+
+	strcpy(c->name, derefConstant(ci->constant_pool, ci->constant_pool[ci->this_class].name_index));
 	c->access_flags = ci->access_flags;
 	c->super_class = NULL;
 
@@ -177,6 +221,16 @@ int printMethods(Class * c)
 				printf(", ");
 		}
 		puts("");
+		printf("\t\tNumber of instrctions: %i\n", c->methods[i].instruction_count);
+		for(int j = 0; j < c->methods[i].instruction_count; j++)
+		{
+			printf("\t%2i: 0x%02x %s\n", j, c->methods[i].code[j].op_code, getBytecodeName(c->methods[i].code[j].op_code));
+			for(int k = 0; k < getBytecodeOperandCount(c->methods[i].code[j].op_code); k++)
+			{
+				printf("\t\t0x%02x\n", c->methods[i].code[j].operands[k].value);
+			}
+		}
+		puts("");
 	}
 }
 
@@ -184,6 +238,8 @@ int printClass(Class * c)
 {
 	printf("Class name: %s\n", c->name);
 	printf("Access flags: %i\n", c->access_flags);
+	printf("Number of Constants: %i\n", c->constant_pool_count);
+	printConstantInfo(c->constant_pool, c->constant_pool_count);
 	printFields(c);
 	printMethods(c);
 }

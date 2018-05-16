@@ -17,6 +17,8 @@ int scan(ClassInfo * ci, FILE * file);
 void CIFree(ClassInfo * ci);
 
 void printClassInfo(ClassInfo * ci);
-char * derefConstant(ClassInfo * ci, int name_index); 
+
+void printConstantInfo(CPInfo * constant_pool, int constant_pool_count);
+char * derefConstant(CPInfo * constant_pool, int name_index); 
 
 #endif

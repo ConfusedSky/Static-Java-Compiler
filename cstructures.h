@@ -52,6 +52,8 @@ typedef struct _class
 	short access_flags;
 	struct _class * super_class;
 	// Lets not worry about interfaces for now.
+	short constant_pool_count;
+	CPInfo * constant_pool;	
 	int field_count;
 	Field fields[10];
 	int method_count;

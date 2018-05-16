@@ -92,9 +92,9 @@ int readChar(char * value, FILE * file)
 	}
 }
 
-char * derefConstant(ClassInfo * ci, int name_index)
+char * derefConstant(CPInfo * constant_pool, int name_index)
 {
-	return ci->constant_pool[name_index].chars;
+	return constant_pool[name_index].chars;
 }
 
 int checkMagic(FILE * file)
@@ -121,7 +121,7 @@ int getVersionInfo(ClassInfo * info, FILE * file)
 	return SCAN_OK;
 }
 
-void printConstantInfo(ClassInfo * ci);
+void printConstantInfo(CPInfo * constant_pool, int constant_pool_count);
 
 int getConstantInfo(ClassInfo * ci, FILE * file)
 {
@@ -167,7 +167,7 @@ int getConstantInfo(ClassInfo * ci, FILE * file)
 				break;
 
 			default:
-				printConstantInfo(ci);
+				printConstantInfo(ci->constant_pool, ci->constant_pool_count);
 				return SCAN_CONSTANT_TAG_NOT_DEFINED;
 		}
 		
@@ -176,41 +176,41 @@ int getConstantInfo(ClassInfo * ci, FILE * file)
 	return SCAN_OK;
 }
 
-void printConstantInfo(ClassInfo * ci)
+void printConstantInfo(CPInfo * constant_pool, int constant_pool_count)
 {
-	for(int i = 1; i < ci->constant_pool_count; i++)
+	for(int i = 1; i < constant_pool_count; i++)
 	{
-		CPInfo * info = &ci->constant_pool[i];
+		CPInfo * info = &constant_pool[i];
 
 		switch(info->tag)
 		{
 			case CONSTANT_Class:
 				printf("%2i Class: Name index(%i)\n", i, info->name_index);
-				printf("\tName: %s\n", derefConstant(ci, info->name_index));
+				printf("\tName: %s\n", derefConstant(constant_pool, info->name_index));
 				break;
 			case CONSTANT_Fieldref:
 				printf("%2i Field Ref: Class index(%i), Name and type index(%i).\n", i, info->class_index, info->name_and_type_index);
-				printf("\tClass: %s\n", derefConstant(ci, ci->constant_pool[info->class_index].name_index));
-				printf("\tName: %s\n", derefConstant(ci, ci->constant_pool[info->name_and_type_index].name_index));
-				printf("\tDescriptor: %s\n", derefConstant(ci, ci->constant_pool[info->name_and_type_index].descriptor_index));
+				printf("\tClass: %s\n", derefConstant(constant_pool, constant_pool[info->class_index].name_index));
+				printf("\tName: %s\n", derefConstant(constant_pool, constant_pool[info->name_and_type_index].name_index));
+				printf("\tDescriptor: %s\n", derefConstant(constant_pool, constant_pool[info->name_and_type_index].descriptor_index));
 				break;
 			case CONSTANT_Methodref:
 				printf("%2i Method Ref: Class index(%i), Name and type index(%i).\n", i, info->class_index, info->name_and_type_index);
-				printf("\tClass: %s\n", derefConstant(ci, ci->constant_pool[info->class_index].name_index));
-				printf("\tName: %s\n", derefConstant(ci, ci->constant_pool[info->name_and_type_index].name_index));
-				printf("\tDescriptor: %s\n", derefConstant(ci, ci->constant_pool[info->name_and_type_index].descriptor_index));
+				printf("\tClass: %s\n", derefConstant(constant_pool, constant_pool[info->class_index].name_index));
+				printf("\tName: %s\n", derefConstant(constant_pool, constant_pool[info->name_and_type_index].name_index));
+				printf("\tDescriptor: %s\n", derefConstant(constant_pool, constant_pool[info->name_and_type_index].descriptor_index));
 				break;
 			case CONSTANT_String:
 				printf("%2i String: Name index(%i)\n", i, info->string_index);
-				printf("\tName: %s\n", derefConstant(ci, info->string_index));
+				printf("\tName: %s\n", derefConstant(constant_pool, info->string_index));
 				break;
 			case CONSTANT_Integer:
 				printf("%2i Integer: Value(%i)\n", i, info->bytes);
 				break;
 			case CONSTANT_NameAndType:
 				printf("%2i Name and Type info: Name index(%i), Descriptor index(%i)\n", i, info->name_index, info->descriptor_index);
-				printf("\tName: %s\n", derefConstant(ci, info->name_index));
-				printf("\tDescriptor: %s\n", derefConstant(ci, info->descriptor_index));
+				printf("\tName: %s\n", derefConstant(constant_pool, info->name_index));
+				printf("\tDescriptor: %s\n", derefConstant(constant_pool, info->descriptor_index));
 				break;
 			case CONSTANT_Utf8:
 				printf("%2i UTF-8 string: %s\n", i, info->chars);
@@ -243,7 +243,7 @@ int get_code_info(ClassInfo * ci, AttributeInfo * ai);
 
 int getAttributeInfo(ClassInfo * ci, AttributeInfo * attribute)
 {
-	char * attribute_name = derefConstant(ci, attribute->attribute_name_index);
+	char * attribute_name = derefConstant(ci->constant_pool, attribute->attribute_name_index);
 
 	if(strcmp(attribute_name, "SourceFile") == 0) get_source_file_info(attribute);
 	if(strcmp(attribute_name, "Code"      ) == 0) get_code_info(ci, attribute);
@@ -290,8 +290,12 @@ int get_code_info(ClassInfo * ci, AttributeInfo * ai)
 	reverseBytes(info, 2);
 	info += 2;
 	reverseBytes(info, 4);
-	info += *(int *)info;
+	int code_length = *(int *)info;
 	info += 4;
+	char * codePointer = (char *) malloc(code_length);
+	memcpy(codePointer, info, code_length);
+
+	info += code_length; 
 	reverseBytes(info, 2);
 	short exception_table_length = *(short *)info;
 	ExceptionInfo * exception_table = (ExceptionInfo *) CIMalloc(ci, exception_table_length * sizeof(ExceptionInfo));
@@ -337,6 +341,7 @@ int get_code_info(ClassInfo * ci, AttributeInfo * ai)
 		getAttributeInfo(ci, &(attributes[i]));
 	}
 
+	code->code = codePointer;
 	code->exception_table_length = exception_table_length;
 	code->exception_table = exception_table;
 	code->attributes_count = attributes_count;
@@ -383,14 +388,14 @@ int printAttributesD(ClassInfo * ci, AttributeInfo * ai, short attributes_count,
 {
 	for(int i = 0; i < attributes_count; i++)
 	{
-		char * attribute_name = derefConstant(ci, ai[i].attribute_name_index);
+		char * attribute_name = derefConstant(ci->constant_pool, ai[i].attribute_name_index);
 		putTabs(depth);
 		printf("\t%s: ", attribute_name);
 		if(strcmp(attribute_name, "SourceFile") == 0)
 		{
 			SourceFileInfo * source_file = (SourceFileInfo *) ai[i].info;
 			unsigned index = source_file->sourcefile_index;
-			printf("%s", derefConstant(ci, index));
+			printf("%s", derefConstant(ci->constant_pool, index));
 		}
 		if(strcmp(attribute_name, "Code") == 0 )
 		{
@@ -429,7 +434,7 @@ void printFieldInfos(ClassInfo * ci)
 {
 	for(int i = 0; i < ci->fields_count; i++)
 	{
-		printf("%#06x, %s, %s\n", ci->fields[i].access_flags, derefConstant(ci, ci->fields[i].name_index), derefConstant(ci, ci->fields[i].descriptor_index));
+		printf("%#06x, %s, %s\n", ci->fields[i].access_flags, derefConstant(ci->constant_pool, ci->fields[i].name_index), derefConstant(ci->constant_pool, ci->fields[i].descriptor_index));
 		printAttributes(ci, ci->fields[i].attributes, ci->fields[i].attributes_count);
 	}
 }
@@ -456,7 +461,7 @@ void printMethodInfos(ClassInfo * ci)
 	for(int i = 0; i < ci->methods_count; i++)
 	{
 		MethodInfo * method = &ci->methods[i];
-		printf("%#06x, %s, %s\n", method->access_flags, derefConstant(ci, method->name_index), derefConstant(ci, method->descriptor_index));
+		printf("%#06x, %s, %s\n", method->access_flags, derefConstant(ci->constant_pool, method->name_index), derefConstant(ci->constant_pool, method->descriptor_index));
 		printAttributes(ci, method->attributes, method->attributes_count);
 	}
 }
@@ -485,10 +490,10 @@ void printClassInfo(ClassInfo * ci)
 {
 	printf("Class Version: %i.%i\n", ci->majorVersion, ci->minorVersion);
 	printf("Number of Constants: %i\n", ci->constant_pool_count);
-	printConstantInfo(ci);
+	printConstantInfo(ci->constant_pool, ci->constant_pool_count);
 	printf("Access Flags: %#06x\n", ci->access_flags);
-	printf("Class: %s\n", derefConstant(ci, ci->constant_pool[ci->this_class].name_index));
-	printf("Super Class: %s\n", derefConstant(ci, ci->constant_pool[ci->super_class].name_index));
+	printf("Class: %s\n", derefConstant(ci->constant_pool, ci->constant_pool[ci->this_class].name_index));
+	printf("Super Class: %s\n", derefConstant(ci->constant_pool, ci->constant_pool[ci->super_class].name_index));
 	printf("Number of Interfaces: %i\n", ci->interfaces_count);
 	printf("Number of Fields: %i\n", ci->fields_count);
 	printFieldInfos(ci);
