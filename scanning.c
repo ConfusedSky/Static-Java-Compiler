@@ -32,65 +32,31 @@ void CIFree(ClassInfo * ci)
 	free(ci->pointers);
 }
 
-int readInt(int * value, FILE * file)
-{
-	unsigned char bytes[4];
-	*value = 0;
-	unsigned int bytesRead = fread(&bytes, 1, 4, file);
-
-	if(bytesRead == 4)
-	{
-		for(int i = 0; i < 4; i++)
-		{
-			*value += bytes[i] << (8 * (4 - 1 - i));
-		}
-
-		return SCAN_OK;
-	}
-	else
-	{
-		return SCAN_FILE_CUT_OFF;
-	}
+#define defineRead(name, type) \
+int read##name(type * value, FILE * file) \
+{ \
+	unsigned char bytes[sizeof(type)]; \
+	*value = 0; \
+	unsigned int bytesRead = fread(&bytes, 1, sizeof(type), file); \
+	\
+	if(bytesRead == sizeof(type)) \
+	{ \
+		for(int i = 0; i < sizeof(type); i++) \
+		{ \
+			*value += bytes[i] << (8 * (sizeof(type) - 1 - i)); \
+		} \
+		\
+		return SCAN_OK; \
+	} \
+	else \
+	{ \
+		return SCAN_FILE_CUT_OFF; \
+	} \
 }
 
-int readShort(short * value, FILE * file)
-{
-	unsigned char bytes[2];
-	*value = 0;
-	unsigned int bytesRead = fread(&bytes, 1, 2, file);
-
-	if(bytesRead == 2)
-	{
-		for(int i = 0; i < 2; i++)
-		{
-			*value += bytes[i] << (8 * (2 - 1 - i));
-		}
-
-		return SCAN_OK;
-	}
-	else
-	{
-		return SCAN_FILE_CUT_OFF;
-	}
-}
-
-int readChar(char * value, FILE * file)
-{
-	unsigned char bytes;
-	*value = 0;
-	unsigned int bytesRead = fread(&bytes, 1, 1, file);
-
-	if(bytesRead == 1)
-	{
-		*value = bytes;
-
-		return SCAN_OK;
-	}
-	else
-	{
-		return SCAN_FILE_CUT_OFF;
-	}
-}
+defineRead(Int, int)
+defineRead(Short, short)
+defineRead(Char, char)
 
 char * derefConstant(CPInfo * constant_pool, int name_index)
 {
