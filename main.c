@@ -2,6 +2,7 @@
 #include "cstructures.h"
 #include "scanning.h"
 #include "parsing.h"
+#include "interpretting.h"
 
 int main(int argc, char const *argv[])
 {
@@ -51,10 +52,14 @@ int main(int argc, char const *argv[])
 #ifdef SCANNING_MAIN
 		printClassInfo(ci);
 #endif
-#ifdef PARSING_MAIN
+#if defined(PARSING_MAIN) || defined(INTERPRETTING_MAIN)
 		returnValue = parse(c, ci);
-
+#endif
+#ifdef PARSING_MAIN
 		printClass(c);
+#endif
+#ifdef INTERPRETTING_MAIN
+		interpret(c);
 #endif
 		CIFree(ci);
 	}

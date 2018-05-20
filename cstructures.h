@@ -2,6 +2,7 @@
 #define _CSTRUCTURES_GUARD
 
 #include "types.h"
+#include "javastructures.h"
 
 #ifndef C_CODE_LENGTH
 #define C_CODE_LENGTH 50

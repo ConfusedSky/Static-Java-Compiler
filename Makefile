@@ -1,6 +1,10 @@
 CC=gcc
 flags = -ggdb
 
+interprettingObj=interpretting.o parsing.o scanning.o types.o util.o bytecodes.o main.c
+interpret: $(interprettingObj)
+	$(CC) $(interprettingObj) $(flags) -o interpret -DINTERPRETTING_MAIN
+
 parsingObj=parsing.o scanning.o types.o util.o bytecodes.o main.c
 parsing: $(parsingObj) 
 	$(CC) $(parsingObj) $(flags) -o parsing -DPARSING_MAIN 
@@ -9,7 +13,10 @@ scanningObj=scanning.o util.o main.c
 scanning : $(scanningObj) 
 	$(CC) $(scanningObj) $(flags) -o scanning -DSCANNING_MAIN
 
-parsing.o : types.h parsing.h parsing.c scanning.h util.h bytecodes.h
+interpretting.o : types.h interpretting.c interpretting.h util.h bytecodes.h cstructures.h scanning.h
+	$(CC) -c interpretting.c
+
+parsing.o : types.h parsing.h parsing.c scanning.h util.h bytecodes.h javastructures.h cstructures.h
 	$(CC) -c parsing.c
 
 scanning.o : scanning.c javastructures.h scanning.h util.h

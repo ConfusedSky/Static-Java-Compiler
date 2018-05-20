@@ -1,5 +1,6 @@
 parsing
 scanning
+interpret
 staticCompiler
 *class
 *.swp
