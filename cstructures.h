@@ -59,6 +59,6 @@ typedef struct _class
 	Field fields[10];
 	int method_count;
 	Method methods[50];
-	} Class;
+} Class;
 
 #endif

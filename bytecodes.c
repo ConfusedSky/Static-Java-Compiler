@@ -64,8 +64,9 @@ void initialize()
 	addBytecode(163, "if_icmgt", 2);
 	addBytecode(164, "if_icmle", 2);
 	addBytecode(167, "goto", 2);
-	addBytecode(183, "invokespecial", 2);
+	addBytecode(172, "ireturn", 0);
 	addBytecode(177, "return", 0);
+	addBytecode(183, "invokespecial", 2);
 	addBytecode(178, "getstatic", 2);
 	addBytecode(182, "invokevirtual", 2);
 	addBytecode(184, "invokestatic", 2);
