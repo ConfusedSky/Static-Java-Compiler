@@ -3,8 +3,11 @@
 #include "scanning.h"
 #include "parsing.h"
 #include "interpretting.h"
+#include "string.h"
 
-int main(int argc, char const *argv[])
+int DEBUG = 0;
+
+int main(int argc, const char *argv[])
 {
 	ClassInfo classinfo;
 	ClassInfo * ci = &classinfo;
@@ -18,6 +21,14 @@ int main(int argc, char const *argv[])
 		return SCAN_NOT_OPENED;
 	}
 
+	if(argc > 2)
+	{
+		if(strcmp(argv[2], "debug") == 0)
+		{
+			DEBUG = 1;
+		}
+	}
+
 	FILE * file;
 	file = fopen(argv[1], "rb");
 	if(!file)
@@ -28,7 +39,7 @@ int main(int argc, char const *argv[])
 
 	int returnValue = scan(ci, file);
 
-	switch(returnValue)
+	if(DEBUG) switch(returnValue)
 	{
 		case SCAN_OK:
 			puts("File correct format.\n");

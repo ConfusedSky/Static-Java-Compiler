@@ -1,15 +1,13 @@
 #include "interpretting.h"
 #include "bytecodes.h"
 #include "scanning.h"
+#include "util.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #define STACK_MAX_SIZE 256
 #define MAX_LOCAL_VARIABLES 256
-
-#define DEBUG 0 
-#define debugPrint if(DEBUG) printf
 
 typedef struct _istack
 {
@@ -67,14 +65,17 @@ int stack_print(IntStack * stack)
 typedef struct _context
 {
 	Class * class;
+	Method * method;
 	IntStack stack;
 	int variables[MAX_LOCAL_VARIABLES];
 	int hasReturn;
+	int pc;
 } Context;
 
 int initializeContext(Context * context, Class * class)
 {
 	context->class = class;
+	context->method = NULL;
 	stack_init(&(context->stack));
 	context->hasReturn = 0;
 	return 0;
@@ -140,21 +141,63 @@ int callMethod(Context * c, CPInfo * constant)
 	return 0;
 }
 
+int branch(Context * c, int offset)
+{
+	if(offset > 0)
+	{
+		for(int i = 0; c->pc < c->method->instruction_count && i < offset; i++)
+		{
+			i += getBytecodeOperandCount(c->method->code[c->pc].op_code);
+			c->pc++;
+		}
+	}	
+	else
+	{
+		for(int i = 0; c->pc >= 0 && i < -offset; i++)
+		{
+			c->pc--;
+			i += getBytecodeOperandCount(c->method->code[c->pc].op_code);
+		}
+	}
+	c->pc--;
+
+	return 0;
+}
+
 int interpretInstruction(Context * c, Instruction * i)
 {
 	int left;
 	int right;
 
 	if(DEBUG) stack_print(&c->stack);
-	debugPrint("%s\n\n", getBytecodeName(i->op_code));
+	debugPrint("%i: %s\n\n", c->pc, getBytecodeName(i->op_code));
 
 	switch(i->op_code)
 	{
 		case 0x03: //iconst_0
 			stack_push(&c->stack, 0);
 			break;
+		case 0x04: //iconst_1
+			stack_push(&c->stack, 1);
+			break;
+		case 0x05: //iconst_2
+			stack_push(&c->stack, 2);
+			break;
+		case 0x08: //iconst_5
+			stack_push(&c->stack, 5);
+			break;
 		case 0x10: //bipush
 			stack_push(&c->stack, i->operands[0].value);
+			break;
+		case 0x60: //iadd
+			right = stack_pop(&c->stack);
+			left = stack_pop(&c->stack);
+			stack_push(&c->stack, left + right);
+			break;
+		case 0x64: //isub
+			right = stack_pop(&c->stack);
+			left = stack_pop(&c->stack);
+			stack_push(&c->stack, left - right);
 			break;
 		case 0x1a: //iload_0
 			stack_push(&c->stack, c->variables[0]);
@@ -162,9 +205,57 @@ int interpretInstruction(Context * c, Instruction * i)
 		case 0x1b: //iload_1
 			stack_push(&c->stack, c->variables[1]);
 			break;
+		case 0x1c: //iload_2
+			stack_push(&c->stack, c->variables[2]);
+			break;
+		case 0x1d: //iload_3
+			stack_push(&c->stack, c->variables[3]);
+			break;
+		case 0x3b: //istore_0
+			c->variables[0] = stack_pop(&c->stack);
+			break;
 		case 0x3c: //istore_1
+			c->variables[1] = stack_pop(&c->stack);
+			break;
+		case 0x3d: //istore_2
+			c->variables[2] = stack_pop(&c->stack);
+			break;
+		case 0x3e: //istore_3
+			c->variables[3] = stack_pop(&c->stack);
+			break;
+		case 0x84: //iinc
+			c->variables[i->operands[0].value] += i->operands[1].value;
+			break;
+		case 0x9a: //ifne
+			if(stack_pop(&c->stack) != 0)
+			{
+				branch(c, (short)((i->operands[0].value << 8) | i->operands[1].value));
+			}
+			break;
+		case 0x9e: //ifle
+			if(stack_pop(&c->stack) <= 0)
+			{
+				branch(c, (short)((i->operands[0].value << 8) | i->operands[1].value));
+			}
+			break;
+		case 0xa0: //if_icne
+			right = stack_pop(&c->stack);
 			left = stack_pop(&c->stack);
-			c->variables[1] = left;
+			if(left != right)
+			{
+				branch(c, (short)((i->operands[0].value << 8) | i->operands[1].value));
+			}
+			break;
+		case 0xa2: //if_icge
+			right = stack_pop(&c->stack);
+			left = stack_pop(&c->stack);
+			if(left >= right)
+			{
+				branch(c, (short)((i->operands[0].value << 8) | i->operands[1].value));
+			}
+			break;
+		case 0xa7: //goto
+			branch(c, (short)((i->operands[0].value << 8) | i->operands[1].value));
 			break;
 		case 0xac: //ireturn
 			c->hasReturn = 1;
@@ -184,7 +275,7 @@ int interpretInstruction(Context * c, Instruction * i)
 			callMethod(c, &(c->class->constant_pool[left]));
 			break;
 		default:
-			printf("0x%02x:%s is not defined.\n", i->op_code, getBytecodeName(i->op_code));
+			printf("0x%02x: %s is not defined.\n", i->op_code, getBytecodeName(i->op_code));
 			stack_print(&c->stack);
 			exit(1);
 	}
@@ -194,14 +285,15 @@ int interpretInstruction(Context * c, Instruction * i)
 int interpretMethod(Context * con, Method * m)
 {
 	debugPrint("\nEnter %s:\n", m->name);
-	Instruction * instruction = m->code;
+	con->method = m;
+	Instruction * instruction;
 
-	for(int i = 0; i < m->instruction_count; i++)
+	con->pc = 0;
+	for(; con->pc < m->instruction_count; con->pc++)
 	{
+		instruction = &(m->code[con->pc]);
 		if(interpretInstruction(con, instruction))
 			break;
-		
-		instruction++;
 	}	
 
 	if(DEBUG) stack_print(&con->stack);

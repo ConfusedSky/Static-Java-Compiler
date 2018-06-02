@@ -50,6 +50,7 @@ void initialize()
 	addBytecode( 77, "astore_2", 0);
 	addBytecode( 78, "astore_3", 0);
 	addBytecode( 96, "iadd", 0);
+	addBytecode(100, "isub", 0);
 	addBytecode(132, "iinc", 2);
 	addBytecode(153, "ifeq", 2);
 	addBytecode(154, "ifne", 2);
