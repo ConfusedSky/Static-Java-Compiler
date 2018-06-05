@@ -78,6 +78,10 @@ void call(SSAProgram * ssap, SSAInstruction * instruction, int constantNo)
     }
     else
     {
+        for(int i = 0; i < method->parameter_count; i++)
+        {
+            popTemp(ssap);
+        }
         instruction->name = "call";
         instruction->right1.tag = SSA_Label;
         instruction->right1.label = method->name;
