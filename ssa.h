@@ -48,6 +48,9 @@ typedef struct _ssa_program
     int code_count;
     SSAVariable variables[256];
     int variable_count;
+    int tempCount;
+    int tempStack[256];
+    int tempStackHeight;
 } SSAProgram;
 
 int generateSSA(SSAProgram *, Class *); 

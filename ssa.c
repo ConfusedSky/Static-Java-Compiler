@@ -6,28 +6,24 @@
 #include "stdlib.h"
 #include "scanning.h"
 
-static int tempCount = 0;
-static int tempStack[256];
-static int tempStackHeight = 0;
-
-SSAOperand generateTemp()
+SSAOperand generateTemp(SSAProgram * ssap)
 {
     SSAOperand temp;
     temp.tag = SSA_Variable;
     temp.variableType = 't';
-    temp.variableNumber = tempCount++;
-    tempStack[tempStackHeight] = temp.variableNumber;
-    tempStackHeight++;
+    temp.variableNumber = ssap->tempCount++;
+    ssap->tempStack[ssap->tempStackHeight] = temp.variableNumber;
+    ssap->tempStackHeight++;
     return temp;
 }
 
-SSAOperand popTemp()
+SSAOperand popTemp(SSAProgram * ssap)
 {
     SSAOperand temp;
     temp.tag = SSA_Variable;
     temp.variableType = 't';
-    tempStackHeight--;
-    temp.variableNumber = tempStack[tempStackHeight];
+    ssap->tempStackHeight--;
+    temp.variableNumber = ssap->tempStack[ssap->tempStackHeight];
     return temp; 
 }
 
@@ -51,6 +47,8 @@ void initProgram(SSAProgram * program, Class * class)
 {
     program->code_count = 0;
     program->class = class;
+    program->tempCount = 0;
+    program->tempStackHeight = 0;
 }
 
 void call(SSAProgram * ssap, SSAInstruction * instruction, int constantNo)
@@ -84,7 +82,7 @@ void call(SSAProgram * ssap, SSAInstruction * instruction, int constantNo)
         instruction->right1.tag = SSA_Label;
         instruction->right1.label = method->name;
         if(method->return_type.type != TYPES_VOID) 
-            instruction->left = generateTemp();
+            instruction->left = generateTemp(ssap);
     }
 }
 
@@ -121,11 +119,12 @@ void generateProgram(SSAProgram * ssap, Method * method)
                         instruction->right1.value = 5;
                         break;
                     case 0x10: //bipush
-                        instruction->right1.value = method->code[i].operands[0].value;
+                        instruction->right1.value = 
+                            method->code[i].operands[0].value;
                         break;
                 }
                 instruction->right2.tag = SSA_None;
-                instruction->left = generateTemp();
+                instruction->left = generateTemp(ssap);
                 instruction->name = "assignConst";
                 break;
             case 0x1a:
@@ -147,7 +146,7 @@ void generateProgram(SSAProgram * ssap, Method * method)
                         instruction->right1 = peekVar(ssap, 3);
                         break;
                 }
-                instruction->left = generateTemp();
+                instruction->left = generateTemp(ssap);
                 instruction->right2.tag = SSA_None;
                 instruction->name = "read";
                 break; 
@@ -166,15 +165,15 @@ void generateProgram(SSAProgram * ssap, Method * method)
                         instruction->left = nextVar(ssap, 3);
                         break;
                 }
-                instruction->right1 = popTemp();
+                instruction->right1 = popTemp(ssap);
                 instruction->right2.tag = SSA_None;
                 instruction->name = "write";
                 break; 
             case 0x60: //iadd
             case 0x64: //isub
-                instruction->right2 = popTemp();
-                instruction->right1 = popTemp();
-                instruction->left = generateTemp();
+                instruction->right2 = popTemp(ssap);
+                instruction->right1 = popTemp(ssap);
+                instruction->left = generateTemp(ssap);
                 switch(method->code[i].op_code)
                 {
                     case 0x60: //iadd
@@ -199,7 +198,7 @@ void generateProgram(SSAProgram * ssap, Method * method)
             case 0x9e: // ifle
                 instruction->right2.tag = SSA_Value;
                 instruction->right2.value = 0;
-                instruction->right1 = popTemp();
+                instruction->right1 = popTemp(ssap);
                 switch(method->code[i].op_code)
                 {
                     case 0x9a: // ifne
@@ -212,8 +211,8 @@ void generateProgram(SSAProgram * ssap, Method * method)
                 break;
             case 0xa0: //if_icmne
             case 0xa2: //if_icmge
-                instruction->right2 = popTemp();
-                instruction->right1 = popTemp();
+                instruction->right2 = popTemp(ssap);
+                instruction->right1 = popTemp(ssap);
                 switch(method->code[i].op_code)
                 {
                     case 0xa0: // if_icmne 
@@ -228,7 +227,7 @@ void generateProgram(SSAProgram * ssap, Method * method)
                 instruction->name = "goto";
                 break;
             case 0xac: //ireturn
-                instruction->right1 = popTemp();
+                instruction->right1 = popTemp(ssap);
                 instruction->name = "return";
                 break;
             case 0xb1: //return

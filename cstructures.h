@@ -14,51 +14,51 @@
 
 typedef struct _type
 {
-	TYPES type;
-	struct _type * subtype;
+    TYPES type;
+    struct _type * subtype;
 } Type;
 
 typedef union _operand
 {
-	int value;
+    int value;
 } Operand;
 
 typedef struct _instruction
 {
-	int op_code;
-	Operand operands[4];
+    int op_code;
+    Operand operands[4];
 } Instruction;
 
 typedef struct _method
 {
-	char name[100];
-	short access_flags;	
-	int instruction_count;
-	Instruction code[C_CODE_LENGTH];
-	Type return_type;	
-	int parameter_count;
-	Type parameter_types[C_MAX_PARAMETERS];
+    char name[100];
+    short access_flags; 
+    int instruction_count;
+    Instruction code[C_CODE_LENGTH];
+    Type return_type;   
+    int parameter_count;
+    Type parameter_types[C_MAX_PARAMETERS];
 } Method;
 
 typedef struct _field
 {
-	char name[100];
-	short access_flags;
-	Type type;
+    char name[100];
+    short access_flags;
+    Type type;
 } Field;
 
 typedef struct _class
 {
-	char name[100];
-	short access_flags;
-	struct _class * super_class;
-	// Lets not worry about interfaces for now.
-	short constant_pool_count;
-	CPInfo * constant_pool;	
-	int field_count;
-	Field fields[10];
-	int method_count;
-	Method methods[50];
+    char name[100];
+    short access_flags;
+    struct _class * super_class;
+    // Lets not worry about interfaces for now.
+    short constant_pool_count;
+    CPInfo * constant_pool; 
+    int field_count;
+    Field fields[10];
+    int method_count;
+    Method methods[50];
 } Class;
 
 #endif
