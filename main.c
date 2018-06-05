@@ -4,6 +4,7 @@
 #include "parsing.h"
 #include "interpretting.h"
 #include "string.h"
+#include "ssa.h"
 
 int DEBUG = 0;
 
@@ -14,6 +15,9 @@ int main(int argc, const char *argv[])
 
 	Class class;
 	Class * c = &class;
+
+	SSAProgram ssa;
+	SSAProgram * ssap = &ssa;
 
 	if(argc < 2)
 	{
@@ -62,9 +66,13 @@ int main(int argc, const char *argv[])
 	{
 #ifdef SCANNING_MAIN
 		printClassInfo(ci);
-#endif
-#if defined(PARSING_MAIN) || defined(INTERPRETTING_MAIN)
+#else
 		returnValue = parse(c, ci);
+# ifdef SSA_MAIN
+		returnValue = generateSSA(ssap, c); 
+		printSSA(ssap);
+# endif
+
 #endif
 #ifdef PARSING_MAIN
 		printClass(c);

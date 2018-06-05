@@ -1,6 +1,10 @@
 CC=gcc
 flags = -ggdb
 
+ssaObj=ssa.o parsing.o scanning.o types.o util.o bytecodes.o main.c
+ssa: $(ssaObj)
+	$(CC) $(ssaObj) $(flags) -o ssa -DSSA_MAIN
+
 interprettingObj=interpretting.o parsing.o scanning.o types.o util.o bytecodes.o main.c
 interpret: $(interprettingObj)
 	$(CC) $(interprettingObj) $(flags) -o interpret -DINTERPRETTING_MAIN
@@ -12,6 +16,9 @@ parsing: $(parsingObj)
 scanningObj=scanning.o util.o main.c
 scanning : $(scanningObj) 
 	$(CC) $(scanningObj) $(flags) -o scanning -DSCANNING_MAIN
+
+ssa.o : types.h ssa.c ssa.c util.h bytecodes.h cstructures.h
+	$(CC) -c ssa.c
 
 interpretting.o : types.h interpretting.c interpretting.h util.h bytecodes.h cstructures.h scanning.h
 	$(CC) -c interpretting.c
